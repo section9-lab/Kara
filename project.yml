@@ -1,0 +1,67 @@
+name: LiveNote
+options:
+  bundleIdPrefix: com.livenote
+  deploymentTarget:
+    macOS: "26.0"
+  xcodeVersion: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    GENERATE_INFOPLIST_FILE: NO
+schemes:
+  LiveNote:
+    build:
+      targets:
+        LiveNote: all
+        LiveNoteTests: [test]
+    test:
+      targets:
+        - LiveNoteTests
+  LiveNoteE2E:
+    build:
+      targets:
+        LiveNote: all
+        LiveNoteUITests: [test]
+    test:
+      targets:
+        - LiveNoteUITests
+targets:
+  LiveNote:
+    type: application
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: LiveNote
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNote
+        PRODUCT_NAME: LiveNote
+        INFOPLIST_FILE: LiveNote/Supporting/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LiveNote/Supporting/LiveNote.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: YES
+  LiveNoteTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: LiveNoteTests
+    dependencies:
+      - target: LiveNote
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNoteTests
+        GENERATE_INFOPLIST_FILE: YES
+  LiveNoteUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: LiveNoteUITests
+    dependencies:
+      - target: LiveNote
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNoteUITests
+        GENERATE_INFOPLIST_FILE: YES

@@ -1,8 +1,8 @@
-# LiveNote 初始化实施计划
+# Kara 初始化实施计划
 
 ## 1. 产品目标
 
-LiveNote 是一款面向 macOS 26 的原生实时语音笔记应用，使用 Swift 开发，并优先采用 macOS 26 最新系统 API 完成实时语音识别、实时翻译、摘要总结和思维导图生成。
+Kara 是一款面向 macOS 26 的原生实时语音笔记应用，使用 Swift 开发，并优先采用 macOS 26 最新系统 API 完成实时语音识别、实时翻译、摘要总结和思维导图生成。
 
 第一版目标是让用户可以快速开始录音，并在会议结束后得到可编辑的原文、译文、摘要、行动项和思维导图。
 
@@ -45,7 +45,7 @@ LiveNote 是一款面向 macOS 26 的原生实时语音笔记应用，使用 Swi
 
 ```bash
 xcodegen generate
-open LiveNote.xcodeproj
+open Kara.xcodeproj
 ```
 
 如果后续决定不使用 XcodeGen，也应优先使用 Xcode 或 SwiftPM 的标准命令创建项目结构，再进行少量必要修改。
@@ -232,9 +232,9 @@ Status Bar 是横向椭圆胶囊，只放有限的高优先级状态数据。
 ## 9. 建议模块拆分
 
 ```text
-LiveNoteApp
+KaraApp
 ├─ App
-│  ├─ LiveNoteApp.swift
+│  ├─ KaraApp.swift
 │  ├─ AppState.swift
 │  └─ PermissionCoordinator.swift
 │
@@ -437,7 +437,7 @@ Spike 1 成功后，再进入 Translation、Summary、MindMap 的实现。
 
 - 使用 XcodeGen 作为命令式项目生成器。
 - 创建最小 macOS 26 SwiftUI App 骨架。
-- 生成 `LiveNote.xcodeproj`。
+- 生成 `Kara.xcodeproj`。
 - 添加麦克风与语音识别权限说明。
 - 添加 App Sandbox 音频输入 entitlements。
 - 添加胶囊 Status Bar 的最小 SwiftUI 组件。
@@ -446,9 +446,9 @@ Spike 1 成功后，再进入 Translation、Summary、MindMap 的实现。
 已执行的关键命令：
 
 ```bash
-mkdir -p LiveNote/App LiveNote/Features/Recording LiveNote/DesignSystem LiveNote/Supporting
+mkdir -p Kara/App Kara/Features/Recording Kara/DesignSystem Kara/Supporting
 xcodegen generate
-xcodebuild -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
 下一步：
@@ -478,7 +478,7 @@ xcodebuild -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -de
 
 ```bash
 xcodegen generate
-xcodebuild -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
 阶段验收要求：
@@ -492,17 +492,17 @@ xcodebuild -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -de
 当前测试记录：
 
 - `xcodebuild ... build`：通过。
-- `LiveNoteTests` 单元测试：通过。
-- 默认 `LiveNote` scheme 测试命令通过：
+- `KaraTests` 单元测试：通过。
+- 默认 `Kara` scheme 测试命令通过：
 
   ```bash
-  xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
+  xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
   ```
 
-- 独立 `LiveNoteE2E` scheme UI smoke test 通过：
+- 独立 `KaraE2E` scheme UI smoke test 通过：
 
   ```bash
-  xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+  xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
   ```
 
 - 自动截图验收暂未覆盖：当前自动化环境执行 `screencapture` 返回 `could not create image from display`，菜单栏胶囊需要人工视觉确认；详见 `e2e_spike1.md`。
@@ -511,7 +511,7 @@ xcodebuild -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -de
 
 - 在本机运行 App，授予麦克风权限。
 - 验证中文实时转写是否能产生临时文本和稳定文本。
-- 人工确认 macOS 右上角 LiveNote 横向胶囊与点击展开状态卡片是否符合参考图。
+- 人工确认 macOS 右上角 Kara 横向胶囊与点击展开状态卡片是否符合参考图。
 - 根据运行结果调整音频格式转换、语言资源安装、错误提示和菜单栏胶囊视觉细节。
 - Spike 1 运行验证通过后，进入 Spike 2：实时翻译。
 
@@ -535,14 +535,14 @@ xcodebuild -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -de
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，4 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，4 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - 真实麦克风语音转写和系统翻译资源下载需要人工 E2E；详见 `e2e_spike2.md`。
 
 下一步：
@@ -571,14 +571,14 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，7 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，7 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - 人工麦克风转写、段落编辑、重点标记、停止归档和新建记录验收需要在真实 App 中执行；详见 `e2e_week2_transcript.md`。
 
 下一步：
@@ -604,15 +604,15 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild build -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild build -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，9 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，9 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - SwiftData in-memory 容器在当前 Xcode/macOS 测试宿主中对 `@Model` 元数据触发系统级 `SIGTRAP`，因此本阶段单测覆盖持久化协议契约与 ViewModel 行为，生产 SwiftData 接线由 Debug build 与 E2E 启动测试覆盖。
 
 下一步：
@@ -635,14 +635,14 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 已执行的验证命令：
 
 ```bash
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，11 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，11 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - 真实麦克风 `SpeechAnalyzer` 点击开始仍需要在 Xcode 中人工复测，重点确认不再出现 `_dispatch_assert_queue_fail`，且菜单栏状态项不会因崩溃消失。
 
 ## 19. 历史空状态与摘要 Spike 执行记录
@@ -664,14 +664,14 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，19 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，19 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - Foundation Models 真实摘要内容仍需要在 Apple Intelligence 可用设备上人工验收；当前自动化覆盖接口接线、状态转换、错误状态和取消逻辑。
 
 下一步：
@@ -699,15 +699,15 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，26 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
-- 期间 `LiveNoteE2E` 曾因一个挂在 `debugserver` 下的残留 `LiveNote` 测试进程无法终止而失败；清理残留进程后重跑通过，失败点不是应用断言。
+- `Kara` 单元测试：通过，26 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
+- 期间 `KaraE2E` 曾因一个挂在 `debugserver` 下的残留 `Kara` 测试进程无法终止而失败；清理残留进程后重跑通过，失败点不是应用断言。
 - Foundation Models 真实摘要与思维导图内容仍需要在 Apple Intelligence 可用设备上人工验收。
 
 下一步：
@@ -732,14 +732,14 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，29 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，29 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - Foundation Models 真实思维导图内容仍需要在 Apple Intelligence 可用设备上人工验收。
 
 下一步：
@@ -766,14 +766,14 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
-- `LiveNote` 单元测试：通过，36 tests。
-- `LiveNoteE2E` UI smoke test：通过，1 test。
+- `Kara` 单元测试：通过，36 tests。
+- `KaraE2E` UI smoke test：通过，1 test。
 - E2E 覆盖启动工作区、导出按钮、导出弹窗打开、取消导出和回到录音按钮。
 - 真实保存面板写入路径仍建议人工验收一次，单元测试已覆盖 ViewModel 写入临时文件。
 
@@ -798,15 +798,15 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前测试记录：
 
 - `xcodegen generate`：通过。
-- `LiveNote` 单元测试：通过，42 tests。
-- `LiveNoteE2E` UI 测试：通过，2 tests。
+- `Kara` 单元测试：通过，42 tests。
+- `KaraE2E` UI 测试：通过，2 tests。
 - E2E 覆盖启动工作区、Status Capsule、工具栏开始 / 停止 / 导出入口、已完成会话 fixture、Markdown 文件真实写入、导出内容校验和清空本地记录。
 
 仍需人工验收：

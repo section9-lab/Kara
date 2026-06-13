@@ -1,6 +1,6 @@
-name: LiveNote
+name: Kara
 options:
-  bundleIdPrefix: com.livenote
+  bundleIdPrefix: com.kara
   deploymentTarget:
     macOS: "26.0"
   xcodeVersion: "26.0"
@@ -10,30 +10,30 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "26.0"
     GENERATE_INFOPLIST_FILE: NO
 schemes:
-  LiveNote:
+  Kara:
     build:
       targets:
-        LiveNote: all
+        Kara: all
 packages:
   WChatClawSwift:
     url: https://github.com/section9-lab/wchat-claw-swfit.git
     branch: main
 targets:
-  LiveNote:
+  Kara:
     type: application
     platform: macOS
     deploymentTarget: "26.0"
     sources:
-      - path: LiveNote
+      - path: Kara
     dependencies:
       - package: WChatClawSwift
         product: WChatClawSwift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNote
-        PRODUCT_NAME: LiveNote
-        INFOPLIST_FILE: LiveNote/Supporting/Info.plist
-        CODE_SIGN_ENTITLEMENTS: LiveNote/Supporting/LiveNote.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.kara.Kara
+        PRODUCT_NAME: Kara
+        INFOPLIST_FILE: Kara/Supporting/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Kara/Supporting/Kara.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
         LSUIElement: YES

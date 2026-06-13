@@ -3,17 +3,17 @@ import Observation
 import AppKit
 
 @main
-struct LiveNoteApp: App {
-    @NSApplicationDelegateAdaptor(LiveNoteAppDelegate.self) private var appDelegate
+struct KaraApp: App {
+    @NSApplicationDelegateAdaptor(KaraAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("LiveNoteAnchor") {
+        WindowGroup("KaraAnchor") {
             Color.clear
                 .frame(width: 1, height: 1)
                 .onAppear {
                     DispatchQueue.main.async {
                         NSApp.windows
-                            .filter { $0.title == "LiveNoteAnchor" }
+                            .filter { $0.title == "KaraAnchor" }
                             .forEach { window in
                                 window.orderOut(nil)
                             }
@@ -30,13 +30,13 @@ struct LiveNoteApp: App {
 }
 
 @MainActor
-final class LiveNoteAppDelegate: NSObject, NSApplicationDelegate {
-    private let appModel = LiveNoteAppModel()
+final class KaraAppDelegate: NSObject, NSApplicationDelegate {
+    private let appModel = KaraAppModel()
     private var statusItemController: MenuBarStatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        ProcessInfo.processInfo.disableAutomaticTermination("LiveNote keeps menu bar voice and IM listeners active")
+        ProcessInfo.processInfo.disableAutomaticTermination("Kara keeps menu bar voice and IM listeners active")
 
         let controller = MenuBarStatusItemController(appModel: appModel)
         controller.install()
@@ -50,12 +50,12 @@ final class LiveNoteAppDelegate: NSObject, NSApplicationDelegate {
 
 @MainActor
 private final class MenuBarStatusItemController: NSObject {
-    private let appModel: LiveNoteAppModel
+    private let appModel: KaraAppModel
     private let statusItem = NSStatusBar.system.statusItem(withLength: 132)
     private let popover = NSPopover()
     private var refreshTimer: Timer?
 
-    init(appModel: LiveNoteAppModel) {
+    init(appModel: KaraAppModel) {
         self.appModel = appModel
     }
 
@@ -72,7 +72,7 @@ private final class MenuBarStatusItemController: NSObject {
         popover.behavior = .transient
         popover.contentSize = NSSize(width: 380, height: 560)
         popover.contentViewController = NSHostingController(
-            rootView: LiveNoteMenuPanel(appModel: appModel)
+            rootView: KaraMenuPanel(appModel: appModel)
         )
 
         refreshStatusImage()
@@ -200,7 +200,7 @@ private enum MenuBarCapsuleImageRenderer {
 }
 
 private struct LiveActivityStatusLabel: View {
-    let appModel: LiveNoteAppModel
+    let appModel: KaraAppModel
 
     var body: some View {
         HStack(spacing: 7) {
@@ -270,8 +270,8 @@ private struct AgentIconView: View {
 
 // MARK: - Menu panel
 
-private struct LiveNoteMenuPanel: View {
-    @Bindable var appModel: LiveNoteAppModel
+private struct KaraMenuPanel: View {
+    @Bindable var appModel: KaraAppModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -294,7 +294,7 @@ private struct LiveNoteMenuPanel: View {
 
                 Spacer()
 
-                Button("退出 LiveNote") {
+                Button("退出 Kara") {
                     NSApplication.shared.terminate(nil)
                 }
                 .controlSize(.small)
@@ -345,7 +345,7 @@ private struct LiveNoteMenuPanel: View {
 
 @MainActor
 @Observable
-final class LiveNoteAppModel {
+final class KaraAppModel {
     private var cursorCompanionController: CursorCompanionController?
     private var aiHotkeyController: AIHotkeyController?
     private let speechService = SpeechTranscriptionService()
@@ -441,13 +441,13 @@ final class LiveNoteAppModel {
                     onError: { [weak self] error in
                         self?.isRecording = false
                         self?.aiService.markFailed(error)
-                        print("[LiveNote] Speech error: \(error)")
+                        print("[Kara] Speech error: \(error)")
                     }
                 )
             } catch {
                 isRecording = false
                 aiService.markFailed(error.localizedDescription)
-                print("[LiveNote] Failed to start speech: \(error)")
+                print("[Kara] Failed to start speech: \(error)")
             }
         }
     }

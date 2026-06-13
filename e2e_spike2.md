@@ -12,7 +12,7 @@
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前状态：
@@ -37,10 +37,10 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
    ```bash
    xcodegen generate
-   open LiveNote.xcodeproj
+   open Kara.xcodeproj
    ```
 
-2. 在 Xcode 中选择 `LiveNote` scheme。
+2. 在 Xcode 中选择 `Kara` scheme。
 3. 运行 App。
 4. 点击 `开始`。
 5. 如出现麦克风权限弹窗，选择允许。

@@ -146,8 +146,8 @@ final class AIIntegrationService {
     var lastResponse: String?
     var lastError: String?
 
-    private let defaultsKey = "LiveNote.selectedAITool"
-    private let sessionDefaultsKey = "LiveNote.selectedAgentSession"
+    private let defaultsKey = "Kara.selectedAITool"
+    private let sessionDefaultsKey = "Kara.selectedAgentSession"
     private var clearStateTask: Task<Void, Never>?
     private var recentSessionTasks: [AIToolType: Task<Void, Never>] = [:]
     nonisolated private static let cliTimeoutSeconds: TimeInterval = 180
@@ -397,7 +397,7 @@ final class AIIntegrationService {
 
         let prompt = request.text
         let outputFileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("livenote-codex-\(request.id.uuidString).txt")
+            .appendingPathComponent("kara-codex-\(request.id.uuidString).txt")
         let shouldCaptureCodexLastMessage = request.target.tool.baseTool == .codexCLI
 
         return await Task.detached(priority: .userInitiated) {
@@ -540,7 +540,7 @@ final class AIIntegrationService {
 
     nonisolated private static func log(_ message: String) {
         let directory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/LiveNote", isDirectory: true)
+            .appendingPathComponent("Library/Logs/Kara", isDirectory: true)
         let url = directory.appendingPathComponent("agent-cli.log")
         let line = "[\(Date())] \(message)\n"
         guard let data = line.data(using: .utf8) else { return }
@@ -556,7 +556,7 @@ final class AIIntegrationService {
                 try data.write(to: url)
             }
         } catch {
-            print("[LiveNote] \(message)")
+            print("[Kara] \(message)")
         }
     }
 

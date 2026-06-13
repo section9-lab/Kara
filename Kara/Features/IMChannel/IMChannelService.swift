@@ -36,8 +36,8 @@ final class IMChannelService {
         }
     }
 
-    private let storageKey = "LiveNote.imChannels"
-    private let wechatUpdatesBufferKey = "LiveNote.wechatUpdatesBuffer"
+    private let storageKey = "Kara.imChannels"
+    private let wechatUpdatesBufferKey = "Kara.wechatUpdatesBuffer"
     private let wechatLoginManager = QRLoginManager()
     private let wechatAccountStore = AccountStore()
     private var wechatLoginTask: Task<Void, Never>?
@@ -414,7 +414,7 @@ final class IMChannelService {
 
     nonisolated private static func log(_ message: String) {
         let directory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/LiveNote", isDirectory: true)
+            .appendingPathComponent("Library/Logs/Kara", isDirectory: true)
         let url = directory.appendingPathComponent("wechat-agent.log")
         let line = "[\(Date())] \(message)\n"
         guard let data = line.data(using: .utf8) else { return }
@@ -430,7 +430,7 @@ final class IMChannelService {
                 try data.write(to: url)
             }
         } catch {
-            print("[LiveNote] \(message)")
+            print("[Kara] \(message)")
         }
     }
 }

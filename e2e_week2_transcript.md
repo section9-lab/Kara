@@ -13,12 +13,12 @@
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前状态：
 
-- `LiveNoteE2E` 已覆盖启动、工作台、翻译面板、会话侧边栏、新建记录入口、当前会话和最近会话。
+- `KaraE2E` 已覆盖启动、工作台、翻译面板、会话侧边栏、新建记录入口、当前会话和最近会话。
 - 会话行已改为可点击列表行，便于后续接入会话切换，也让 macOS 辅助功能树稳定暴露行内容。
 - 当前本机命令行运行通过。
 
@@ -27,7 +27,7 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 命令：
 
 ```bash
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme Kara -configuration Debug -destination 'platform=macOS'
 ```
 
 覆盖范围：
@@ -53,10 +53,10 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNote -configuration Debu
 
    ```bash
    xcodegen generate
-   open LiveNote.xcodeproj
+   open Kara.xcodeproj
    ```
 
-2. 在 Xcode 中选择 `LiveNote` scheme 并运行 App。
+2. 在 Xcode 中选择 `Kara` scheme 并运行 App。
 3. 确认左侧显示当前会话、最近会话和 `新建记录`。
 4. 点击 `开始` 并说一段中文。
 5. 等待稳定转写段落出现。

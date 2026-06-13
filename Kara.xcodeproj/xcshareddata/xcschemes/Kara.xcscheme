@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "7CFDCB10F1B473A0D1DD6BA7"
-               BuildableName = "LiveNote.app"
-               BlueprintName = "LiveNote"
-               ReferencedContainer = "container:LiveNote.xcodeproj">
+               BlueprintIdentifier = "AC96B7D177B7EEC4EEBF5002"
+               BuildableName = "Kara.app"
+               BlueprintName = "Kara"
+               ReferencedContainer = "container:Kara.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -32,10 +32,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "7CFDCB10F1B473A0D1DD6BA7"
-            BuildableName = "LiveNote.app"
-            BlueprintName = "LiveNote"
-            ReferencedContainer = "container:LiveNote.xcodeproj">
+            BlueprintIdentifier = "AC96B7D177B7EEC4EEBF5002"
+            BuildableName = "Kara.app"
+            BlueprintName = "Kara"
+            ReferencedContainer = "container:Kara.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -55,10 +55,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "7CFDCB10F1B473A0D1DD6BA7"
-            BuildableName = "LiveNote.app"
-            BlueprintName = "LiveNote"
-            ReferencedContainer = "container:LiveNote.xcodeproj">
+            BlueprintIdentifier = "AC96B7D177B7EEC4EEBF5002"
+            BuildableName = "Kara.app"
+            BlueprintName = "Kara"
+            ReferencedContainer = "container:Kara.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,10 +72,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "7CFDCB10F1B473A0D1DD6BA7"
-            BuildableName = "LiveNote.app"
-            BlueprintName = "LiveNote"
-            ReferencedContainer = "container:LiveNote.xcodeproj">
+            BlueprintIdentifier = "AC96B7D177B7EEC4EEBF5002"
+            BuildableName = "Kara.app"
+            BlueprintName = "Kara"
+            ReferencedContainer = "container:Kara.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

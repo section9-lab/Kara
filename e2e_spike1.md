@@ -13,7 +13,7 @@
 
 ```bash
 xcodegen generate
-xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration Debug -destination 'platform=macOS'
+xcodebuild test -project Kara.xcodeproj -scheme KaraE2E -configuration Debug -destination 'platform=macOS'
 ```
 
 当前状态：
@@ -25,9 +25,9 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
 处理方式：
 
-- 默认开发验证使用 `LiveNote` scheme 跑单元测试。
-- E2E 使用独立 `LiveNoteE2E` scheme。
-- 如果后续命令行 UI 自动化受系统权限限制，可以在 Xcode 中运行 `LiveNoteE2E`，或按下方人工 E2E 步骤验收。
+- 默认开发验证使用 `Kara` scheme 跑单元测试。
+- E2E 使用独立 `KaraE2E` scheme。
+- 如果后续命令行 UI 自动化受系统权限限制，可以在 Xcode 中运行 `KaraE2E`，或按下方人工 E2E 步骤验收。
 - 菜单栏胶囊与屏幕截图类视觉验收仍需人工确认；当前自动化环境无法通过 `screencapture` 获取屏幕图像。
 
 ## 人工 E2E
@@ -45,22 +45,22 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 
    ```bash
    xcodegen generate
-   open LiveNote.xcodeproj
+   open Kara.xcodeproj
    ```
 
-2. 在 Xcode 中选择 `LiveNote` scheme。
+2. 在 Xcode 中选择 `Kara` scheme。
 3. 运行 App。
 4. 确认主界面出现：
-   - 左侧 `LiveNote` 会话列表。
+   - 左侧 `Kara` 会话列表。
    - 中央 `准备开始实时记录`。
    - 顶部胶囊状态为 `就绪`。
    - 胶囊内显示 `中文 → 英文` 与 `本机`。
-5. 确认 macOS 右上角菜单栏出现 LiveNote 横向胶囊状态项，而不是普通单个图标。
+5. 确认 macOS 右上角菜单栏出现 Kara 横向胶囊状态项，而不是普通单个图标。
 6. 胶囊状态项应包含：
    - 状态图标。
    - 录音时长，例如 `0s`、`1m 30s`。
    - 右侧状态 badge，例如 `Ready`、`REC`。
-7. 点击菜单栏 LiveNote 胶囊，确认展开的是浮层状态卡片，而不是普通菜单；卡片内显示：
+7. 点击菜单栏 Kara 胶囊，确认展开的是浮层状态卡片，而不是普通菜单；卡片内显示：
    - 当前状态。
    - 录音时长。
    - `中文 → 英文 · 本机`。
@@ -76,7 +76,7 @@ xcodebuild test -project LiveNote.xcodeproj -scheme LiveNoteE2E -configuration D
 通过标准：
 
 - App 不崩溃。
-- macOS 右上角菜单栏出现 LiveNote 横向胶囊状态项。
+- macOS 右上角菜单栏出现 Kara 横向胶囊状态项。
 - 点击胶囊后展开状态卡片。
 - 麦克风权限流程可触发。
 - 录音状态能进入录音中。

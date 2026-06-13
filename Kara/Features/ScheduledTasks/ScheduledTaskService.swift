@@ -181,10 +181,10 @@ final class ScheduledTaskService {
     var lastError: String?
     var keepSystemAwake = false
 
-    private let storageKey = "LiveNote.scheduledTasks"
-    private let runsStorageKey = "LiveNote.scheduledTaskRuns"
-    private let keepAwakeStorageKey = "LiveNote.scheduledTasks.keepAwake"
-    private let exampleSeedStorageKey = "LiveNote.scheduledTasks.seededExamples.v1"
+    private let storageKey = "Kara.scheduledTasks"
+    private let runsStorageKey = "Kara.scheduledTaskRuns"
+    private let keepAwakeStorageKey = "Kara.scheduledTasks.keepAwake"
+    private let exampleSeedStorageKey = "Kara.scheduledTasks.seededExamples.v1"
     private var schedulerTimer: Timer?
     private var powerAssertionID = IOPMAssertionID(0)
     private var runningTaskIDs: Set<UUID> = []
@@ -241,7 +241,7 @@ final class ScheduledTaskService {
     private func updatePowerAssertion() {
         if keepSystemAwake {
             guard powerAssertionID == 0 else { return }
-            let reason = "LiveNote scheduled tasks require the Mac to stay awake" as CFString
+            let reason = "Kara scheduled tasks require the Mac to stay awake" as CFString
             let result = IOPMAssertionCreateWithName(
                 kIOPMAssertionTypeNoIdleSleep as CFString,
                 IOPMAssertionLevel(kIOPMAssertionLevelOn),

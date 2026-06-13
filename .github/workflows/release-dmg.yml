@@ -25,13 +25,23 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Configure private package access
+        env:
+          GIT_AUTH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
+        run: |
+          git config --global url."https://x-access-token:${GIT_AUTH_TOKEN}@github.com/".insteadOf "https://github.com/"
+
       - name: Build DMG
         id: package
         run: |
           chmod +x Scripts/package_dmg.sh
-          dmg_path="$(Scripts/package_dmg.sh | tail -n 1)"
+          dmg_output="$(mktemp)"
+          DMG_PATH_OUTPUT="$dmg_output" Scripts/package_dmg.sh
+          dmg_path="$(cat "$dmg_output")"
           version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Kara/Supporting/Info.plist)"
           short_sha="${GITHUB_SHA::7}"
+
+          test -f "$dmg_path"
 
           echo "dmg_path=$dmg_path" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"

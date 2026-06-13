@@ -32,4 +32,8 @@ hdiutil create \
   -format UDZO \
   "$DMG_PATH"
 
+if [[ -n "${DMG_PATH_OUTPUT:-}" ]]; then
+  printf '%s\n' "$DMG_PATH" > "$DMG_PATH_OUTPUT"
+fi
+
 echo "$DMG_PATH"

@@ -17,6 +17,7 @@
 		74944D25BAA6E44748A4D842 /* SettingsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A59F6CEDD0766080900C55 /* SettingsPanelView.swift */; };
 		A1F17978A9D5B913B473EFC0 /* CursorCompanionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 759BEBDF30BA51B21F002328 /* CursorCompanionView.swift */; };
 		C78488DEE0111B61B2030337 /* SpeechTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5606619B54A8DBB3EE1BBE3 /* SpeechTranscriptionService.swift */; };
+		C918AF5A47B701F2C710E63F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AFA6EBD546DEDD0A8783428B /* Assets.xcassets */; };
 		CD8B2DCC89AAB62C74FF077B /* AIHotkeyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF495DB9BB709363C41302C0 /* AIHotkeyController.swift */; };
 		D0AF4829925B6A1B6E105783 /* CursorCompanionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016C9B6CA96B216F469EDE2F /* CursorCompanionModel.swift */; };
 		DCDD5A94DF2C73312B61B159 /* IMChannelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EC0324CECC75DEE42DC05DD /* IMChannelService.swift */; };
@@ -35,6 +36,7 @@
 		7080B46EE0F6376BC8B4C186 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		759BEBDF30BA51B21F002328 /* CursorCompanionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorCompanionView.swift; sourceTree = "<group>"; };
 		816E1AB43C8AD1B477267F87 /* AIToolType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIToolType.swift; sourceTree = "<group>"; };
+		AFA6EBD546DEDD0A8783428B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BE331A68595D1F31CB58B68D /* PermissionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCoordinator.swift; sourceTree = "<group>"; };
 		CF495DB9BB709363C41302C0 /* AIHotkeyController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIHotkeyController.swift; sourceTree = "<group>"; };
 		DB15D7A0FE174C96D61B3BAC /* AIIntegrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIIntegrationService.swift; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 		B6C1A5FB66864A77E6034A87 /* Kara */ = {
 			isa = PBXGroup;
 			children = (
+				AFA6EBD546DEDD0A8783428B /* Assets.xcassets */,
 				E6E1A391A1130BFF51FB33B3 /* App */,
 				45F8464E9AE069D9058FAD1F /* Features */,
 				2EEB4CE49A033C44C60F31A6 /* Services */,
@@ -172,6 +175,7 @@
 			buildConfigurationList = 1AB9B814C1B6458097788CC2 /* Build configuration list for PBXNativeTarget "Kara" */;
 			buildPhases = (
 				0C563E45B2BF2BCBD54AE7FB /* Sources */,
+				F5E3D98B0F7E4A2BCC66938B /* Resources */,
 				DC6AA84F30D3AACE9AD90432 /* Frameworks */,
 			);
 			buildRules = (
@@ -218,6 +222,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F5E3D98B0F7E4A2BCC66938B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C918AF5A47B701F2C710E63F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0C563E45B2BF2BCBD54AE7FB /* Sources */ = {

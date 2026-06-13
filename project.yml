@@ -25,6 +25,10 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: Kara
+        excludes:
+          - Supporting/AppIcon.icon/**
+          - Supporting/IconSources/**
+          - Supporting/Kara.icns
     dependencies:
       - package: WChatClawSwift
         product: WChatClawSwift

@@ -3,9 +3,17 @@ import CoreMedia
 import Foundation
 @preconcurrency import Speech
 
+/// Lightweight speech recognition result (text + timing).
+struct SpeechSegment: Sendable {
+    let text: String
+    let isFinal: Bool
+    let startTime: TimeInterval
+    let duration: TimeInterval
+}
+
 @MainActor
 final class SpeechTranscriptionService {
-    typealias ResultHandler = @MainActor @Sendable (TranscriptSegment) -> Void
+    typealias ResultHandler = @MainActor @Sendable (SpeechSegment) -> Void
     typealias ErrorHandler = @MainActor @Sendable (String) -> Void
 
     private let engine = AVAudioEngine()
@@ -78,7 +86,7 @@ final class SpeechTranscriptionService {
                     let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !text.isEmpty else { continue }
 
-                    let segment = TranscriptSegment(
+                    let segment = SpeechSegment(
                         text: text,
                         isFinal: result.isFinal,
                         startTime: result.range.start.seconds,
@@ -119,10 +127,9 @@ final class SpeechTranscriptionService {
     }
 
     func stop() async {
-        resultTask?.cancel()
-        resultTask = nil
-        analyzerTask?.cancel()
-        analyzerTask = nil
+        let analyzerToFinish = analyzer
+        let analyzerTaskToAwait = analyzerTask
+        let resultTaskToAwait = resultTask
 
         inputContinuation?.finish()
         inputContinuation = nil
@@ -133,7 +140,19 @@ final class SpeechTranscriptionService {
             engine.stop()
         }
 
-        await analyzer?.cancelAndFinishNow()
+        if let analyzerToFinish {
+            do {
+                try await analyzerToFinish.finalizeAndFinishThroughEndOfInput()
+            } catch {
+                await analyzerToFinish.cancelAndFinishNow()
+            }
+        }
+
+        await analyzerTaskToAwait?.value
+        await resultTaskToAwait?.value
+
+        analyzerTask = nil
+        resultTask = nil
         analyzer = nil
         currentFormat = nil
     }

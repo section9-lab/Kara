@@ -14,18 +14,10 @@ schemes:
     build:
       targets:
         LiveNote: all
-        LiveNoteTests: [test]
-    test:
-      targets:
-        - LiveNoteTests
-  LiveNoteE2E:
-    build:
-      targets:
-        LiveNote: all
-        LiveNoteUITests: [test]
-    test:
-      targets:
-        - LiveNoteUITests
+packages:
+  WChatClawSwift:
+    url: https://github.com/section9-lab/wchat-claw-swfit.git
+    branch: main
 targets:
   LiveNote:
     type: application
@@ -33,6 +25,9 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: LiveNote
+    dependencies:
+      - package: WChatClawSwift
+        product: WChatClawSwift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNote
@@ -41,27 +36,4 @@ targets:
         CODE_SIGN_ENTITLEMENTS: LiveNote/Supporting/LiveNote.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
-  LiveNoteTests:
-    type: bundle.unit-test
-    platform: macOS
-    deploymentTarget: "26.0"
-    sources:
-      - path: LiveNoteTests
-    dependencies:
-      - target: LiveNote
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNoteTests
-        GENERATE_INFOPLIST_FILE: YES
-  LiveNoteUITests:
-    type: bundle.ui-testing
-    platform: macOS
-    deploymentTarget: "26.0"
-    sources:
-      - path: LiveNoteUITests
-    dependencies:
-      - target: LiveNote
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.livenote.LiveNoteUITests
-        GENERATE_INFOPLIST_FILE: YES
+        LSUIElement: YES

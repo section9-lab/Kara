@@ -1,0 +1,450 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		10AE5287D8189DA19AB54310 /* PermissionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484DCED6E72B550176F76735 /* PermissionCoordinator.swift */; };
+		1CA7C3D5631DCEFA58B5A7CF /* AIToolType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502913CEDD8204D46EBF0E10 /* AIToolType.swift */; };
+		23AF8041E86F65C219024A26 /* AIIntegrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E49E23B40ADE72F75EADB035 /* AIIntegrationService.swift */; };
+		420F557BEA81B47BDC6AC5B0 /* CursorCompanionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCB62361161023BEA5789C9 /* CursorCompanionController.swift */; };
+		6DCD8F9C7B0D3B0BF6E68A0B /* SpeechTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D3A806ECB3E025E414F70D9 /* SpeechTranscriptionService.swift */; };
+		9A2270072CF4342056448B9E /* LiveNoteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91FE08FF0EDFBEF24E827949 /* LiveNoteApp.swift */; };
+		A7DFAF32BBC007643FF23BAD /* IMChannelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3901F4F61FBEBDF39CEC891C /* IMChannelService.swift */; };
+		B7E7AD2A4E14B370044545E9 /* CursorCompanionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40CFC7DEA4140F08C1B1A9C3 /* CursorCompanionModel.swift */; };
+		BA2A5302CEFA0D71E16B8F94 /* CursorCompanionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B76FFD5FAFD1B2F8E244A8E /* CursorCompanionView.swift */; };
+		CC514E3242D5B5BF2FC7BD63 /* IMPlatformType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E515025F792C1ABB0E29906 /* IMPlatformType.swift */; };
+		E301FCDF72EBAA15CEABA4C8 /* ScheduledTaskService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D245B43CD6C8BABA07C60D0 /* ScheduledTaskService.swift */; };
+		F017C175ED5EEE8580D112E3 /* AIHotkeyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC67971C49403E169F5A8A27 /* AIHotkeyController.swift */; };
+		F06B855B89B80AF9A10444BB /* SettingsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98C15F21BEAC6A522EC4725 /* SettingsPanelView.swift */; };
+		F34DA5EBDC32561FCA67A373 /* WChatClawSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E0F0325643CE839E9C5164E4 /* WChatClawSwift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0BCB62361161023BEA5789C9 /* CursorCompanionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorCompanionController.swift; sourceTree = "<group>"; };
+		2D3A806ECB3E025E414F70D9 /* SpeechTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechTranscriptionService.swift; sourceTree = "<group>"; };
+		3901F4F61FBEBDF39CEC891C /* IMChannelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMChannelService.swift; sourceTree = "<group>"; };
+		40CFC7DEA4140F08C1B1A9C3 /* CursorCompanionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorCompanionModel.swift; sourceTree = "<group>"; };
+		484DCED6E72B550176F76735 /* PermissionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCoordinator.swift; sourceTree = "<group>"; };
+		4D245B43CD6C8BABA07C60D0 /* ScheduledTaskService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledTaskService.swift; sourceTree = "<group>"; };
+		502913CEDD8204D46EBF0E10 /* AIToolType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIToolType.swift; sourceTree = "<group>"; };
+		6B76FFD5FAFD1B2F8E244A8E /* CursorCompanionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorCompanionView.swift; sourceTree = "<group>"; };
+		7E515025F792C1ABB0E29906 /* IMPlatformType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMPlatformType.swift; sourceTree = "<group>"; };
+		91FE08FF0EDFBEF24E827949 /* LiveNoteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveNoteApp.swift; sourceTree = "<group>"; };
+		C9A0D1A2D86CC893D304F05B /* LiveNote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiveNote.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E49E23B40ADE72F75EADB035 /* AIIntegrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIIntegrationService.swift; sourceTree = "<group>"; };
+		E98C15F21BEAC6A522EC4725 /* SettingsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanelView.swift; sourceTree = "<group>"; };
+		EC67971C49403E169F5A8A27 /* AIHotkeyController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIHotkeyController.swift; sourceTree = "<group>"; };
+		F894A07CB82FED1476B59A80 /* LiveNote.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LiveNote.entitlements; sourceTree = "<group>"; };
+		FB07FAD51DDEAA798BF60EDE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1D0FCDB7B3F62CCA23FDF4D1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F34DA5EBDC32561FCA67A373 /* WChatClawSwift in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		051DDAAB9F30EB40E0858B5F /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				2D3A806ECB3E025E414F70D9 /* SpeechTranscriptionService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		06D45F60298FB5117E730BDF = {
+			isa = PBXGroup;
+			children = (
+				AF1E383B2563872B7613E057 /* LiveNote */,
+				21D0ED2C41F47C2A45863108 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		21D0ED2C41F47C2A45863108 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C9A0D1A2D86CC893D304F05B /* LiveNote.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		3DEE08DE00408334024592ED /* ScheduledTasks */ = {
+			isa = PBXGroup;
+			children = (
+				4D245B43CD6C8BABA07C60D0 /* ScheduledTaskService.swift */,
+			);
+			path = ScheduledTasks;
+			sourceTree = "<group>";
+		};
+		7B23ED84EB767D82290913B9 /* CursorCompanion */ = {
+			isa = PBXGroup;
+			children = (
+				0BCB62361161023BEA5789C9 /* CursorCompanionController.swift */,
+				40CFC7DEA4140F08C1B1A9C3 /* CursorCompanionModel.swift */,
+				6B76FFD5FAFD1B2F8E244A8E /* CursorCompanionView.swift */,
+			);
+			path = CursorCompanion;
+			sourceTree = "<group>";
+		};
+		AEE1932D67F0B4C039AD6A61 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				E56913834B25152BFE05C0BA /* AIIntegration */,
+				7B23ED84EB767D82290913B9 /* CursorCompanion */,
+				B84B8E69BC1DE2274B0FCEC7 /* IMChannel */,
+				3DEE08DE00408334024592ED /* ScheduledTasks */,
+				CCB6103AF95BE8CBC883B0B9 /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		AF1E383B2563872B7613E057 /* LiveNote */ = {
+			isa = PBXGroup;
+			children = (
+				F12CEFB3BF5AE237D1BCA8F5 /* App */,
+				AEE1932D67F0B4C039AD6A61 /* Features */,
+				051DDAAB9F30EB40E0858B5F /* Services */,
+				DCFE0FA76A8019C1F0980F84 /* Supporting */,
+			);
+			path = LiveNote;
+			sourceTree = "<group>";
+		};
+		B84B8E69BC1DE2274B0FCEC7 /* IMChannel */ = {
+			isa = PBXGroup;
+			children = (
+				3901F4F61FBEBDF39CEC891C /* IMChannelService.swift */,
+				7E515025F792C1ABB0E29906 /* IMPlatformType.swift */,
+			);
+			path = IMChannel;
+			sourceTree = "<group>";
+		};
+		CCB6103AF95BE8CBC883B0B9 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				E98C15F21BEAC6A522EC4725 /* SettingsPanelView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		DCFE0FA76A8019C1F0980F84 /* Supporting */ = {
+			isa = PBXGroup;
+			children = (
+				FB07FAD51DDEAA798BF60EDE /* Info.plist */,
+				F894A07CB82FED1476B59A80 /* LiveNote.entitlements */,
+			);
+			path = Supporting;
+			sourceTree = "<group>";
+		};
+		E56913834B25152BFE05C0BA /* AIIntegration */ = {
+			isa = PBXGroup;
+			children = (
+				EC67971C49403E169F5A8A27 /* AIHotkeyController.swift */,
+				E49E23B40ADE72F75EADB035 /* AIIntegrationService.swift */,
+				502913CEDD8204D46EBF0E10 /* AIToolType.swift */,
+			);
+			path = AIIntegration;
+			sourceTree = "<group>";
+		};
+		F12CEFB3BF5AE237D1BCA8F5 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				91FE08FF0EDFBEF24E827949 /* LiveNoteApp.swift */,
+				484DCED6E72B550176F76735 /* PermissionCoordinator.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7CFDCB10F1B473A0D1DD6BA7 /* LiveNote */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 94C22D8C179E579B07E70127 /* Build configuration list for PBXNativeTarget "LiveNote" */;
+			buildPhases = (
+				C0806A03044F654EA30F9032 /* Sources */,
+				1D0FCDB7B3F62CCA23FDF4D1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LiveNote;
+			packageProductDependencies = (
+				E0F0325643CE839E9C5164E4 /* WChatClawSwift */,
+			);
+			productName = LiveNote;
+			productReference = C9A0D1A2D86CC893D304F05B /* LiveNote.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CE7DF430E87D2C32A5B342B8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = DDFDAE4C09286FB368D76EE0 /* Build configuration list for PBXProject "LiveNote" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 06D45F60298FB5117E730BDF;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CF153A8C1A83C714A6A82839 /* XCRemoteSwiftPackageReference "wchat-claw-swfit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 21D0ED2C41F47C2A45863108 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7CFDCB10F1B473A0D1DD6BA7 /* LiveNote */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C0806A03044F654EA30F9032 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F017C175ED5EEE8580D112E3 /* AIHotkeyController.swift in Sources */,
+				23AF8041E86F65C219024A26 /* AIIntegrationService.swift in Sources */,
+				1CA7C3D5631DCEFA58B5A7CF /* AIToolType.swift in Sources */,
+				420F557BEA81B47BDC6AC5B0 /* CursorCompanionController.swift in Sources */,
+				B7E7AD2A4E14B370044545E9 /* CursorCompanionModel.swift in Sources */,
+				BA2A5302CEFA0D71E16B8F94 /* CursorCompanionView.swift in Sources */,
+				A7DFAF32BBC007643FF23BAD /* IMChannelService.swift in Sources */,
+				CC514E3242D5B5BF2FC7BD63 /* IMPlatformType.swift in Sources */,
+				9A2270072CF4342056448B9E /* LiveNoteApp.swift in Sources */,
+				10AE5287D8189DA19AB54310 /* PermissionCoordinator.swift in Sources */,
+				E301FCDF72EBAA15CEABA4C8 /* ScheduledTaskService.swift in Sources */,
+				F06B855B89B80AF9A10444BB /* SettingsPanelView.swift in Sources */,
+				6DCD8F9C7B0D3B0BF6E68A0B /* SpeechTranscriptionService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		583242052254C1F087938E21 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		8C9C2F383AC794F3C5BA9A30 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = LiveNote/Supporting/LiveNote.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = LiveNote/Supporting/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LSUIElement = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.livenote.LiveNote;
+				PRODUCT_NAME = LiveNote;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		A7ABDCF14D42744303B122D0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D8E2CFB8225846F7F7F5952A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = LiveNote/Supporting/LiveNote.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = LiveNote/Supporting/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LSUIElement = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.livenote.LiveNote;
+				PRODUCT_NAME = LiveNote;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		94C22D8C179E579B07E70127 /* Build configuration list for PBXNativeTarget "LiveNote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8C9C2F383AC794F3C5BA9A30 /* Debug */,
+				D8E2CFB8225846F7F7F5952A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DDFDAE4C09286FB368D76EE0 /* Build configuration list for PBXProject "LiveNote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				583242052254C1F087938E21 /* Debug */,
+				A7ABDCF14D42744303B122D0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CF153A8C1A83C714A6A82839 /* XCRemoteSwiftPackageReference "wchat-claw-swfit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/section9-lab/wchat-claw-swfit.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E0F0325643CE839E9C5164E4 /* WChatClawSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF153A8C1A83C714A6A82839 /* XCRemoteSwiftPackageReference "wchat-claw-swfit" */;
+			productName = WChatClawSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = CE7DF430E87D2C32A5B342B8 /* Project object */;
+}

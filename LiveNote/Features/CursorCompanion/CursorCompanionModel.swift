@@ -8,7 +8,6 @@ final class CursorCompanionModel {
     /// The smoothly-interpolated position the view reads each frame.
     var cursorPosition: CGPoint = .zero
 
-    var isBlinking: Bool = false
     var screenSize: CGSize = CGSize(width: 1920, height: 1080)
 
     /// True while the cursor is physically on this screen.
@@ -18,13 +17,7 @@ final class CursorCompanionModel {
     private var targetX: CGFloat = 0
     private var targetY: CGFloat = 0
 
-    private var blinkTask: Task<Void, Never>?
     private var lerpTask: Task<Void, Never>?
-    private var floatPhase: Double = 0
-
-    var floatOffset: CGFloat {
-        CGFloat(sin(floatPhase) * 2.5)
-    }
 
     // MARK: - Public API called by ScreenCompanionMonitor
 
@@ -41,14 +34,10 @@ final class CursorCompanionModel {
     // MARK: - Lifecycle
 
     func startAnimations() {
-        startBlinking()
         startLerp()
-        startFloat()
     }
 
     func stopAnimations() {
-        blinkTask?.cancel()
-        blinkTask = nil
         lerpTask?.cancel()
         lerpTask = nil
     }
@@ -80,28 +69,4 @@ final class CursorCompanionModel {
         }
     }
 
-    // MARK: - Cosmetic animations
-
-    private func startBlinking() {
-        blinkTask = Task { [weak self] in
-            while !Task.isCancelled {
-                let delay = Double.random(in: 2.5...5.0)
-                try? await Task.sleep(for: .seconds(delay))
-                guard !Task.isCancelled else { return }
-                self?.isBlinking = true
-                try? await Task.sleep(for: .milliseconds(150))
-                self?.isBlinking = false
-            }
-        }
-    }
-
-    private func startFloat() {
-        Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(50))
-                guard let self, !Task.isCancelled else { return }
-                self.floatPhase += 0.12
-            }
-        }
-    }
 }

@@ -10,6 +10,13 @@ APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/Kara.app"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Kara/Supporting/Info.plist)"
 DMG_PATH="dist/Kara-$VERSION.dmg"
 DMG_ROOT="build/dmg-root"
+CODE_SIGN_ARGS=()
+
+if [[ -n "${CODE_SIGN_IDENTITY_OVERRIDE:-}" ]]; then
+  CODE_SIGN_ARGS+=(CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY_OVERRIDE")
+elif [[ "${CI:-}" == "true" ]]; then
+  CODE_SIGN_ARGS+=(CODE_SIGN_IDENTITY="-")
+fi
 
 xcodebuild \
   -project Kara.xcodeproj \
@@ -17,7 +24,7 @@ xcodebuild \
   -configuration "$CONFIGURATION" \
   -destination 'platform=macOS' \
   -derivedDataPath "$DERIVED_DATA_PATH" \
-  CODE_SIGN_IDENTITY="-" \
+  ${CODE_SIGN_ARGS[@]+"${CODE_SIGN_ARGS[@]}"} \
   build
 
 rm -rf "$DMG_ROOT" "$DMG_PATH"

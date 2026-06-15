@@ -199,6 +199,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					AC96B7D177B7EEC4EEBF5002 = {
+						DevelopmentTeam = YP86S77K2X;
+						ProvisioningStyle = Manual;
+					};
 				};
 			};
 			buildConfigurationList = 4F9BC1A1E3BC29892E37B99A /* Build configuration list for PBXProject "Kara" */;
@@ -384,7 +388,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Kara/Supporting/Kara.entitlements;
+				CODE_SIGN_IDENTITY = E04719740CD0DF70E4D0CA1B42ABBD273B4E0F9A;
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = YP86S77K2X;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Kara/Supporting/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -404,7 +411,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Kara/Supporting/Kara.entitlements;
+				CODE_SIGN_IDENTITY = E04719740CD0DF70E4D0CA1B42ABBD273B4E0F9A;
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = YP86S77K2X;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Kara/Supporting/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

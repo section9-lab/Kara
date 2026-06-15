@@ -1,42 +1,30 @@
 import SwiftUI
 import Observation
 import AppKit
-
-@main
-struct KaraApp: App {
-    @NSApplicationDelegateAdaptor(KaraAppDelegate.self) private var appDelegate
-
-    var body: some Scene {
-        WindowGroup("KaraAnchor") {
-            Color.clear
-                .frame(width: 1, height: 1)
-                .onAppear {
-                    DispatchQueue.main.async {
-                        NSApp.windows
-                            .filter { $0.title == "KaraAnchor" }
-                            .forEach { window in
-                                window.orderOut(nil)
-                            }
-                    }
-                }
-        }
-        .defaultSize(width: 1, height: 1)
-        .windowResizability(.contentSize)
-
-        Settings {
-            EmptyView()
-        }
-    }
-}
+import ImageIO
+import ScreenCaptureKit
+import UniformTypeIdentifiers
 
 @MainActor
+@main
 final class KaraAppDelegate: NSObject, NSApplicationDelegate {
     private let appModel = KaraAppModel()
     private var statusItemController: MenuBarStatusItemController?
+    private var keepAlivePanel: NSPanel?
+
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = KaraAppDelegate()
+        app.delegate = delegate
+        withExtendedLifetime(delegate) {
+            app.run()
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         ProcessInfo.processInfo.disableAutomaticTermination("Kara keeps menu bar voice and IM listeners active")
+        installKeepAlivePanel()
 
         let controller = MenuBarStatusItemController(appModel: appModel)
         controller.install()
@@ -45,6 +33,24 @@ final class KaraAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    private func installKeepAlivePanel() {
+        let panel = NSPanel(
+            contentRect: NSRect(x: -10_000, y: -10_000, width: 1, height: 1),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isReleasedWhenClosed = false
+        panel.hidesOnDeactivate = false
+        panel.level = .normal
+        panel.alphaValue = 0
+        panel.ignoresMouseEvents = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        panel.contentView = NSView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
+        panel.orderFront(nil)
+        keepAlivePanel = panel
     }
 }
 
@@ -358,6 +364,7 @@ final class KaraAppModel {
     var transcribedText = ""
     private var finalizedTranscript = ""
     private var volatileTranscript = ""
+    private var currentScreenshotTask: Task<URL?, Never>?
 
     var menuBarTool: AIToolType? {
         aiService.preferredTool
@@ -423,6 +430,10 @@ final class KaraAppModel {
         transcribedText = ""
         finalizedTranscript = ""
         volatileTranscript = ""
+        currentScreenshotTask?.cancel()
+        currentScreenshotTask = Task {
+            await Self.captureCurrentMouseScreen()
+        }
 
         Task {
             do {
@@ -461,16 +472,29 @@ final class KaraAppModel {
             await speechService.stop()
 
             let text = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let screenshotURL = await currentScreenshotTask?.value
+            guard let screenshotURL else {
+                aiService.markFailed("需要授权屏幕截图后再发送")
+                PermissionCoordinator.openScreenCaptureSettings()
+                currentScreenshotTask = nil
+                return
+            }
+
             if !text.isEmpty {
-                await aiService.deliverText(text)
+                await aiService.deliverText(text, screenshotURL: screenshotURL)
                 imService.broadcastMessage(text)
             } else {
                 aiService.markFailed("没有识别到语音文本")
             }
-            transcribedText = ""
-            finalizedTranscript = ""
-            volatileTranscript = ""
+            resetTranscriptState()
         }
+    }
+
+    private func resetTranscriptState() {
+        transcribedText = ""
+        finalizedTranscript = ""
+        volatileTranscript = ""
+        currentScreenshotTask = nil
     }
 
     private func acceptSpeechSegment(_ segment: SpeechSegment) {
@@ -504,5 +528,125 @@ final class KaraAppModel {
         }
 
         return String(cleaned.suffix(9))
+    }
+
+    private static func captureCurrentMouseScreen() async -> URL? {
+        if !PermissionCoordinator.hasScreenCaptureAccess(),
+           !PermissionCoordinator.requestScreenCaptureAccess() {
+            Self.log("screenshot unavailable: screen capture permission was not granted")
+            return nil
+        }
+
+        guard let screen = Self.screenContainingMouse() ?? NSScreen.main,
+              let displayID = Self.displayID(for: screen)
+        else {
+            return nil
+        }
+
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            )
+            guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
+                return nil
+            }
+
+            let filter = SCContentFilter(display: display, excludingWindows: [])
+            let configuration = SCStreamConfiguration()
+            configuration.width = display.width
+            configuration.height = display.height
+            configuration.showsCursor = true
+
+            let image = try await SCScreenshotManager.captureImage(
+                contentFilter: filter,
+                configuration: configuration
+            )
+
+            let directory = try Self.screenshotDirectory()
+            try Self.removeOldScreenshots(in: directory)
+
+            let url = directory.appendingPathComponent("kara-screen-\(UUID().uuidString).png")
+
+            return Self.writePNG(image, to: url) ? url : nil
+        } catch {
+            Self.log("screenshot capture failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private static func writePNG(_ image: CGImage, to url: URL) -> Bool {
+        guard let destination = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else {
+            return false
+        }
+
+        CGImageDestinationAddImage(destination, image, nil)
+        let success = CGImageDestinationFinalize(destination)
+        if success {
+            Self.log("screenshot captured: \(url.path)")
+        } else {
+            Self.log("screenshot write failed: \(url.path)")
+        }
+        return success
+    }
+
+    private static func screenContainingMouse() -> NSScreen? {
+        let mouseLocation = NSEvent.mouseLocation
+        return NSScreen.screens.first { $0.frame.contains(mouseLocation) }
+    }
+
+    private static func displayID(for screen: NSScreen) -> CGDirectDisplayID? {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        return (screen.deviceDescription[key] as? NSNumber)?.uint32Value
+    }
+
+    private static func screenshotDirectory() throws -> URL {
+        let directory = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Kara/Screenshots", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private static func removeOldScreenshots(in directory: URL) throws {
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        let urls = try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )
+
+        for url in urls where url.pathExtension.lowercased() == "png" {
+            let values = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+            if let modified = values?.contentModificationDate, modified < cutoff {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
+    private static func log(_ message: String) {
+        let directory = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/Kara", isDirectory: true)
+        let url = directory.appendingPathComponent("app.log")
+        let line = "[\(Date())] \(message)\n"
+        guard let data = line.data(using: .utf8) else { return }
+
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: url.path) {
+                let handle = try FileHandle(forWritingTo: url)
+                try handle.seekToEnd()
+                try handle.write(contentsOf: data)
+                try handle.close()
+            } else {
+                try data.write(to: url)
+            }
+        } catch {
+            print("[Kara] \(message)")
+        }
     }
 }

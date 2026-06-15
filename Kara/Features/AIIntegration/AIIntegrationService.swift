@@ -67,6 +67,7 @@ struct AgentTarget: Equatable, Codable {
 struct AgentDeliveryRequest: Identifiable, Equatable {
     let id = UUID()
     let text: String
+    let screenshotURL: URL?
     let target: AgentTarget
     let createdAt = Date()
 }
@@ -281,9 +282,9 @@ final class AIIntegrationService {
         }
     }
 
-    func deliverTextForReply(_ text: String) async throws -> String {
+    func deliverTextForReply(_ text: String, screenshotURL: URL? = nil) async throws -> String {
         Self.log("deliverTextForReply start: \(Self.previewText(text))")
-        let result = await deliverText(text)
+        let result = await deliverText(text, screenshotURL: screenshotURL)
 
         switch result.state {
         case .completed:
@@ -300,7 +301,7 @@ final class AIIntegrationService {
     }
 
     @discardableResult
-    func deliverText(_ text: String) async -> AgentDeliveryResult {
+    func deliverText(_ text: String, screenshotURL: URL? = nil) async -> AgentDeliveryResult {
         clearStateTask?.cancel()
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -326,7 +327,7 @@ final class AIIntegrationService {
         }
 
         let target = AgentTarget(tool: tool, endpoint: endpoint, session: selectedSession)
-        let request = AgentDeliveryRequest(text: trimmedText, target: target)
+        let request = AgentDeliveryRequest(text: trimmedText, screenshotURL: screenshotURL, target: target)
 
         deliveryState = .sending(request)
         deliveryState = .running(request)
@@ -395,10 +396,11 @@ final class AIIntegrationService {
             return CLIExecutionResult(exitCode: 1, output: "当前目标不是 CLI")
         }
 
-        let prompt = request.text
+        let prompt = Self.promptText(for: request)
         let outputFileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("kara-codex-\(request.id.uuidString).txt")
         let shouldCaptureCodexLastMessage = request.target.tool.baseTool == .codexCLI
+        let shouldSendPromptViaStdin = request.target.tool.baseTool == .codexCLI
 
         return await Task.detached(priority: .userInitiated) {
             let process = Process()
@@ -414,13 +416,30 @@ final class AIIntegrationService {
                     processArguments += ["--output-last-message", outputFileURL.path]
                 }
             }
-            process.arguments = processArguments + [prompt]
+            if request.target.tool.baseTool == .codexCLI,
+               let screenshotURL = request.screenshotURL,
+               FileManager.default.fileExists(atPath: screenshotURL.path) {
+                Self.insertCodexImageArgument(screenshotURL.path, into: &processArguments)
+                Self.log("runCLI attaching image: \(screenshotURL.path)")
+            } else if request.target.tool.baseTool == .claudeCLI,
+                      let screenshotURL = request.screenshotURL,
+                      FileManager.default.fileExists(atPath: screenshotURL.path) {
+                Self.insertClaudeScreenshotDirectory(screenshotURL.deletingLastPathComponent().path, into: &processArguments)
+                Self.log("runCLI exposing screenshot directory to Claude: \(screenshotURL.deletingLastPathComponent().path)")
+            } else if request.screenshotURL != nil {
+                Self.log("runCLI screenshot available but no image argument for tool=\(request.target.tool.rawValue)")
+            }
+            process.arguments = shouldSendPromptViaStdin ? processArguments : processArguments + [prompt]
             process.currentDirectoryURL = Self.workingDirectoryURL(for: request.target.session)
 
             let outputPipe = Pipe()
             let errorPipe = Pipe()
+            let inputPipe = Pipe()
             let outputCapture = PipeCapture()
             let errorCapture = PipeCapture()
+            if shouldSendPromptViaStdin {
+                process.standardInput = inputPipe
+            }
             process.standardOutput = outputPipe
             process.standardError = errorPipe
             outputPipe.fileHandleForReading.readabilityHandler = { handle in
@@ -437,8 +456,13 @@ final class AIIntegrationService {
             }
 
             do {
-                Self.log("runCLI start: \(command) \(processArguments.joined(separator: " ")); cwd=\(process.currentDirectoryURL?.path ?? "")")
+                let promptSource = shouldSendPromptViaStdin ? "stdin" : "argv"
+                Self.log("runCLI start: \(command) \(processArguments.joined(separator: " ")); prompt=\(promptSource); cwd=\(process.currentDirectoryURL?.path ?? "")")
                 try process.run()
+                if shouldSendPromptViaStdin {
+                    try inputPipe.fileHandleForWriting.write(contentsOf: Data(prompt.utf8))
+                    try inputPipe.fileHandleForWriting.close()
+                }
                 let deadline = Date().addingTimeInterval(Self.cliTimeoutSeconds)
                 while process.isRunning && Date() < deadline {
                     try? await Task.sleep(for: .milliseconds(200))
@@ -513,6 +537,60 @@ final class AIIntegrationService {
     }
 
     // MARK: - Helpers
+
+    nonisolated private static func promptText(for request: AgentDeliveryRequest) -> String {
+        guard let screenshotURL = request.screenshotURL else {
+            return request.text
+        }
+
+        if request.target.tool.baseTool == .codexCLI {
+            return """
+            语音转写内容：
+            \(request.text)
+
+            同一时刻的屏幕截图已作为图片附件随本次请求发送。
+
+            请结合语音转写和截图理解我的意图并执行。
+            """
+        }
+
+        if request.target.tool.baseTool == .claudeCLI {
+            return """
+            语音转写内容：
+            \(request.text)
+
+            同一时刻的屏幕截图已保存为 PNG 文件：
+            \(screenshotURL.path)
+
+            这个截图目录已经通过 --add-dir 授权给你读取。请读取这张截图，并结合语音转写理解我的意图并执行。
+            """
+        }
+
+        return """
+        语音转写内容：
+        \(request.text)
+
+        同一时刻的屏幕截图已保存为 PNG 文件：
+        \(screenshotURL.path)
+
+        请结合语音转写和这张截图理解我的意图并执行。
+        """
+    }
+
+    nonisolated private static func insertCodexImageArgument(_ path: String, into arguments: inout [String]) {
+        if arguments.count >= 2,
+           arguments[0] == "exec",
+           arguments[1] == "resume" {
+            arguments.insert(contentsOf: ["--image", path], at: 2)
+        } else {
+            arguments += ["--image", path]
+        }
+    }
+
+    nonisolated private static func insertClaudeScreenshotDirectory(_ path: String, into arguments: inout [String]) {
+        guard !arguments.contains(path) else { return }
+        arguments += ["--add-dir", path]
+    }
 
     private func fail(_ message: String) -> AgentDeliveryResult {
         lastError = message

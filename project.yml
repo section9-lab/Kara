@@ -36,6 +36,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kara.Kara
         PRODUCT_NAME: Kara
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: E04719740CD0DF70E4D0CA1B42ABBD273B4E0F9A
+        DEVELOPMENT_TEAM: YP86S77K2X
         INFOPLIST_FILE: Kara/Supporting/Info.plist
         CODE_SIGN_ENTITLEMENTS: Kara/Supporting/Kara.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

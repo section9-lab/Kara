@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import CoreImage.CIFilterBuiltins
 
 /// Unified settings panel with tabs: AI Tools, IM Channels, Scheduled Tasks.
@@ -80,10 +81,13 @@ struct SettingsPanelView: View {
 private struct AIToolsSection: View {
     @Bindable var aiService: AIIntegrationService
     @State private var testMessage: String = ""
+    @State private var screenCaptureStatus = PermissionCoordinator.screenCaptureStatus
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             headerText("选择语音转写的目标 Agent")
+
+            screenCapturePermissionPanel
 
             ForEach(AIToolType.allCases) { tool in
                 AIToolRow(
@@ -120,6 +124,86 @@ private struct AIToolsSection: View {
             }
         }
         .padding(16)
+        .onAppear {
+            refreshScreenCaptureStatus()
+        }
+    }
+
+    private var screenCapturePermissionPanel: some View {
+        HStack(spacing: 10) {
+            Label(screenCaptureStatusTitle, systemImage: screenCaptureStatusIcon)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(screenCaptureStatusColor)
+
+            Spacer()
+
+            Button {
+                requestScreenCaptureAccess()
+            } label: {
+                Label("授权截图", systemImage: "rectangle.dashed.badge.record")
+            }
+            .controlSize(.small)
+            .disabled(screenCaptureStatus == .granted)
+
+            Button {
+                PermissionCoordinator.openScreenCaptureSettings()
+                refreshScreenCaptureStatus()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("打开系统录屏权限设置")
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.42))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.30), lineWidth: 1)
+                )
+        )
+    }
+
+    private var screenCaptureStatusTitle: String {
+        switch screenCaptureStatus {
+        case .granted:
+            return "屏幕截图已授权"
+        case .denied:
+            return "屏幕截图未授权"
+        }
+    }
+
+    private var screenCaptureStatusIcon: String {
+        switch screenCaptureStatus {
+        case .granted:
+            return "checkmark.circle.fill"
+        case .denied:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var screenCaptureStatusColor: Color {
+        switch screenCaptureStatus {
+        case .granted:
+            return .green
+        case .denied:
+            return .orange
+        }
+    }
+
+    private func refreshScreenCaptureStatus() {
+        screenCaptureStatus = PermissionCoordinator.screenCaptureStatus
+    }
+
+    private func requestScreenCaptureAccess() {
+        if PermissionCoordinator.requestScreenCaptureAccess() {
+            refreshScreenCaptureStatus()
+        } else {
+            PermissionCoordinator.openScreenCaptureSettings()
+            refreshScreenCaptureStatus()
+        }
     }
 
     private var emptyAIState: some View {

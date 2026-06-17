@@ -76,6 +76,7 @@ struct AgentBridgeStartConfig: Codable, Equatable {
     let text: String
     let screenshotPath: String?
     let selectedTool: AIToolType?
+    let enabledTools: [AIToolType]
     let selectedSession: AgentSession
     let forcedTarget: AgentTarget?
     let context: AgentBridgeContext

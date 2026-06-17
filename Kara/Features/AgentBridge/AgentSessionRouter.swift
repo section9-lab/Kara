@@ -6,10 +6,14 @@ struct AgentSessionRouter {
     func route(
         text: String,
         selectedTool: AIToolType?,
+        enabledTools: Set<AIToolType>,
         selectedSession: AgentSession,
         forcedTarget: AgentTarget?
     ) -> Result<AgentBridgeRoute, AgentBridgeRouteError> {
         if let forcedTarget {
+            guard enabledTools.contains(forcedTarget.tool.baseTool) else {
+                return .failure(AgentBridgeRouteError(message: "\(forcedTarget.tool.displayName) 已在设置中关闭"))
+            }
             return .success(
                 AgentBridgeRoute(
                     target: forcedTarget,
@@ -19,7 +23,8 @@ struct AgentSessionRouter {
         }
 
         if let lastTarget = lastSuccessfulTarget(),
-           lastTarget.tool.canSendMessages {
+           lastTarget.tool.canSendMessages,
+           enabledTools.contains(lastTarget.tool.baseTool) {
             return .success(
                 AgentBridgeRoute(
                     target: lastTarget,
@@ -28,8 +33,10 @@ struct AgentSessionRouter {
             )
         }
 
-        let tool = selectedTool?.baseTool
-            ?? preferredInstalledTool()
+        let selectedBaseTool = selectedTool?.baseTool
+        let tool = selectedBaseTool.flatMap {
+            enabledTools.contains($0) ? $0 : nil
+        } ?? preferredInstalledTool(enabledTools: enabledTools)
 
         guard let tool else {
             return .failure(AgentBridgeRouteError(message: "未检测到可用 Agent CLI"))
@@ -68,7 +75,9 @@ struct AgentSessionRouter {
         return target
     }
 
-    private func preferredInstalledTool() -> AIToolType? {
-        [.codexCLI, .claudeCLI, .hermesCLI].first { $0.canSendMessages }
+    private func preferredInstalledTool(enabledTools: Set<AIToolType>) -> AIToolType? {
+        [.codexCLI, .claudeCLI, .hermesCLI].first {
+            $0.canSendMessages && enabledTools.contains($0)
+        }
     }
 }

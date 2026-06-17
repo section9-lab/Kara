@@ -8,6 +8,7 @@ final class AgentBridgeService {
     var activeTurnID: UUID?
     var lastSeq: Int = 0
     var recentEvents: [AgentBridgeEvent] = []
+    var lastRoute: AgentBridgeRoute?
     var lastRouteReason: String?
     var lastContext: AgentBridgeContext?
 
@@ -21,6 +22,12 @@ final class AgentBridgeService {
     ) {
         self.eventStore = eventStore
         self.router = router
+        if let lastTarget = router.lastSuccessfulTarget() {
+            self.lastRoute = AgentBridgeRoute(
+                target: lastTarget,
+                reason: "上一次成功发送的 Agent/session"
+            )
+        }
 
         Task {
             await publish(.bridgeReady, turnID: nil, message: "Agent Bridge ready")
@@ -34,6 +41,7 @@ final class AgentBridgeService {
         text: String,
         screenshotURL: URL?,
         selectedTool: AIToolType?,
+        enabledTools: Set<AIToolType>,
         selectedSession: AgentSession,
         forcedTarget: AgentTarget? = nil,
         onRequestReady: @MainActor @escaping (AgentDeliveryRequest) -> Void
@@ -58,6 +66,7 @@ final class AgentBridgeService {
             text: text,
             screenshotPath: screenshotURL?.path,
             selectedTool: selectedTool,
+            enabledTools: Array(enabledTools).sorted { $0.rawValue < $1.rawValue },
             selectedSession: selectedSession,
             forcedTarget: forcedTarget,
             context: context
@@ -77,6 +86,7 @@ final class AgentBridgeService {
         let routeResult = router.route(
             text: text,
             selectedTool: selectedTool,
+            enabledTools: enabledTools,
             selectedSession: selectedSession,
             forcedTarget: forcedTarget
         )
@@ -98,6 +108,7 @@ final class AgentBridgeService {
         }
 
         lastRouteReason = route.reason
+        lastRoute = route
         await publish(.routed, turnID: turnID, message: route.reason, payload: [
             "tool": route.target.tool.rawValue,
             "session": route.target.session.externalID ?? "new",

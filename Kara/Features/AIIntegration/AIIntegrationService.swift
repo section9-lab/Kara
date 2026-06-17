@@ -151,12 +151,20 @@ final class AIIntegrationService {
     let bridgeService = AgentBridgeService()
 
     private let defaultsKey = "Kara.selectedAITool"
+    private let enabledToolsDefaultsKey = "Kara.enabledAITools"
     private let sessionDefaultsKey = "Kara.selectedAgentSession"
+    private var enabledToolIDs: Set<String>
     private var clearStateTask: Task<Void, Never>?
     private var recentSessionTasks: [AIToolType: Task<Void, Never>] = [:]
     nonisolated private static let cliTimeoutSeconds: TimeInterval = 180
 
     init() {
+        if let savedIDs = UserDefaults.standard.array(forKey: enabledToolsDefaultsKey) as? [String] {
+            enabledToolIDs = Set(savedIDs)
+        } else {
+            enabledToolIDs = Set(AIToolType.allCases.map(\.rawValue))
+        }
+
         if let raw = UserDefaults.standard.string(forKey: defaultsKey),
            let tool = AIToolType(rawValue: raw) {
             selectedTool = tool.baseTool
@@ -181,14 +189,18 @@ final class AIIntegrationService {
         AIToolType.allCases.filter { $0.canSendMessages }
     }
 
+    var enabledTools: Set<AIToolType> {
+        Set(AIToolType.allCases.filter { enabledToolIDs.contains($0.baseTool.rawValue) })
+    }
+
     var preferredTool: AIToolType? {
         selectedTool.flatMap {
             let normalizedTool = $0.baseTool
-            return normalizedTool.canSendMessages ? normalizedTool : nil
+            return normalizedTool.canSendMessages && isToolEnabled(normalizedTool) ? normalizedTool : nil
         }
-            ?? installedTools.first(where: { $0 == .codexCLI })
-            ?? installedTools.first(where: { $0 == .claudeCLI })
-            ?? installedTools.first(where: { $0 == .hermesCLI })
+            ?? installedTools.first(where: { $0 == .codexCLI && isToolEnabled($0) })
+            ?? installedTools.first(where: { $0 == .claudeCLI && isToolEnabled($0) })
+            ?? installedTools.first(where: { $0 == .hermesCLI && isToolEnabled($0) })
     }
 
     var statusDetailText: String {
@@ -203,6 +215,24 @@ final class AIIntegrationService {
         for tool in AIToolType.allCases {
             loadRecentSessions(for: tool)
         }
+    }
+
+    func isToolEnabled(_ tool: AIToolType) -> Bool {
+        enabledToolIDs.contains(tool.baseTool.rawValue)
+    }
+
+    func setTool(_ tool: AIToolType, enabled: Bool) {
+        let normalizedTool = tool.baseTool
+        if enabled {
+            enabledToolIDs.insert(normalizedTool.rawValue)
+        } else {
+            enabledToolIDs.remove(normalizedTool.rawValue)
+            if selectedTool?.baseTool == normalizedTool {
+                selectedTool = nil
+            }
+        }
+        persistEnabledTools()
+        loadRecentSessionsForSelectedTool()
     }
 
     func loadRecentSessionsForSelectedTool() {
@@ -347,6 +377,7 @@ final class AIIntegrationService {
             text: trimmedText,
             screenshotURL: screenshotURL,
             selectedTool: forcedTarget?.tool.baseTool ?? preferredTool,
+            enabledTools: enabledTools,
             selectedSession: selectedSession,
             forcedTarget: forcedTarget,
             onRequestReady: { [weak self] request in
@@ -679,6 +710,10 @@ final class AIIntegrationService {
         } else {
             UserDefaults.standard.removeObject(forKey: defaultsKey)
         }
+    }
+
+    private func persistEnabledTools() {
+        UserDefaults.standard.set(Array(enabledToolIDs).sorted(), forKey: enabledToolsDefaultsKey)
     }
 
     private func persistSession() {

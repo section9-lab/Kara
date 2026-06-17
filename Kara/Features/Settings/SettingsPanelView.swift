@@ -1,84 +1,359 @@
 import SwiftUI
 import AppKit
 import CoreImage.CIFilterBuiltins
+import Speech
 
-/// Unified settings panel with tabs: AI Tools, IM Channels, Scheduled Tasks.
+/// Settings for agent availability. Runtime routing is owned by Agent Bridge.
 struct SettingsPanelView: View {
     @Bindable var aiService: AIIntegrationService
-    @Bindable var imService: IMChannelService
-    @Bindable var taskService: ScheduledTaskService
-
-    @State private var selectedTab: SettingsTab = .aiTools
-
-    enum SettingsTab: String, CaseIterable {
-        case aiTools    = "AI 工具"
-        case imChannels = "IM 通道"
-        case scheduled  = "定时任务"
-
-        var icon: String {
-            switch self {
-            case .aiTools:    return "brain"
-            case .imChannels: return "message"
-            case .scheduled:  return "clock"
-            }
-        }
-    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Tab bar
-            HStack(spacing: 0) {
-                ForEach(SettingsTab.allCases, id: \.self) { tab in
-                    tabButton(tab)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-
-            Divider()
-
-            // Tab content
             ScrollView {
-                switch selectedTab {
-                case .aiTools:
+                VStack(alignment: .leading, spacing: 18) {
+                    PermissionsSection()
                     AIToolsSection(aiService: aiService)
-                case .imChannels:
-                    IMChannelsSection(imService: imService)
-                case .scheduled:
-                    ScheduledTasksSection(taskService: taskService, aiService: aiService, imService: imService)
                 }
+                .padding(16)
             }
         }
-        .frame(width: 380, height: 480)
+    }
+}
+
+// MARK: - Permissions Section
+
+private struct PermissionsSection: View {
+    @State private var microphoneStatus = PermissionCoordinator.microphoneStatus
+    @State private var speechStatus = SFSpeechRecognizer.authorizationStatus()
+    @State private var screenCaptureStatus = PermissionCoordinator.screenCaptureStatus
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            headerText("权限状态")
+
+            VStack(spacing: 0) {
+                SettingsPermissionStatusRow(
+                    icon: "mic",
+                    title: "麦克风",
+                    statusText: microphoneStatusText,
+                    tint: microphoneStatus == .granted ? .green : .orange,
+                    actionTitle: microphoneStatus == .granted ? nil : "授权"
+                ) {
+                    Task { await requestMicrophoneAccess() }
+                }
+
+                Divider()
+                    .padding(.leading, 52)
+
+                SettingsPermissionStatusRow(
+                    icon: "waveform",
+                    title: "语音识别",
+                    statusText: speechStatusText,
+                    tint: speechStatus == .authorized ? .green : .orange,
+                    actionTitle: speechStatus == .authorized ? nil : "授权"
+                ) {
+                    requestSpeechRecognitionAccess()
+                }
+
+                Divider()
+                    .padding(.leading, 52)
+
+                SettingsPermissionStatusRow(
+                    icon: "display",
+                    title: "屏幕录制",
+                    statusText: screenCaptureStatus == .granted ? "已授权" : "未授权",
+                    tint: screenCaptureStatus == .granted ? .green : .orange,
+                    actionTitle: screenCaptureStatus == .granted ? nil : "授权"
+                ) {
+                    requestScreenCaptureAccess()
+                }
+            }
+            .background(settingsCardBackground)
+        }
+        .onAppear {
+            refreshPermissionStatus()
+        }
     }
 
-    private func tabButton(_ tab: SettingsTab) -> some View {
-        Button {
-            selectedTab = tab
-        } label: {
-            VStack(spacing: 3) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: 14))
-                Text(tab.rawValue)
-                    .font(.caption2)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(selectedTab == tab ? Color.accentColor.opacity(0.15) : Color.clear)
-            )
-            .foregroundStyle(selectedTab == tab ? Color.accentColor : .secondary)
-            .contentShape(Rectangle())
+    private var microphoneStatusText: String {
+        switch microphoneStatus {
+        case .granted:
+            return "已授权"
+        case .denied:
+            return "未授权"
+        case .undetermined:
+            return "未请求"
         }
-        .buttonStyle(.plain)
+    }
+
+    private var speechStatusText: String {
+        switch speechStatus {
+        case .authorized:
+            return "已授权"
+        case .denied, .restricted:
+            return "未授权"
+        case .notDetermined:
+            return "未请求"
+        @unknown default:
+            return "未知"
+        }
+    }
+
+    private func refreshPermissionStatus() {
+        microphoneStatus = PermissionCoordinator.microphoneStatus
+        speechStatus = SFSpeechRecognizer.authorizationStatus()
+        screenCaptureStatus = PermissionCoordinator.screenCaptureStatus
+    }
+
+    private func requestMicrophoneAccess() async {
+        _ = await PermissionCoordinator.requestMicrophoneAccess()
+        refreshPermissionStatus()
+    }
+
+    private func requestSpeechRecognitionAccess() {
+        SFSpeechRecognizer.requestAuthorization { _ in
+            Task { @MainActor in
+                refreshPermissionStatus()
+            }
+        }
+    }
+
+    private func requestScreenCaptureAccess() {
+        if PermissionCoordinator.requestScreenCaptureAccess() {
+            refreshPermissionStatus()
+        } else {
+            PermissionCoordinator.openScreenCaptureSettings()
+            refreshPermissionStatus()
+        }
+    }
+}
+
+private struct SettingsPermissionStatusRow: View {
+    let icon: String
+    let title: String
+    let statusText: String
+    let tint: Color
+    let actionTitle: String?
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.primary.opacity(0.06))
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 36, height: 36)
+
+            Text(title)
+                .font(.callout.weight(.semibold))
+
+            Spacer()
+
+            Text(statusText)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(tint)
+
+            if let actionTitle {
+                Button(actionTitle) {
+                    action()
+                }
+                .controlSize(.small)
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.green)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }
 
 // MARK: - AI Tools Section
 
 private struct AIToolsSection: View {
+    @Bindable var aiService: AIIntegrationService
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            headerText("启用可被 Bridge 路由的 AI 工具")
+
+            ForEach(AIToolType.allCases) { tool in
+                AIToolToggleRow(
+                    tool: tool,
+                    sessions: aiService.recentSessionsByTool[tool.baseTool] ?? [],
+                    isLoadingSessions: aiService.loadingRecentSessionTools.contains(tool.baseTool),
+                    isCurrentRoute: aiService.bridgeService.lastRoute?.target.tool.baseTool == tool.baseTool,
+                    isEnabled: Binding(
+                        get: { aiService.isToolEnabled(tool) },
+                        set: { aiService.setTool(tool, enabled: $0) }
+                    )
+                )
+            }
+
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.blue)
+                    .frame(width: 20)
+
+                Text("这里不选择当前 Agent 或 session。Kara 会由 Agent Bridge 根据上一次成功目标、可用工具和请求上下文自动决定。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.blue.opacity(0.07))
+            )
+
+            if aiService.enabledTools.isEmpty {
+                Label("至少开启一个已安装工具，语音请求才可以发送", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            } else if aiService.enabledTools.allSatisfy({ !$0.canSendMessages }) {
+                Label("开启的工具未检测到可用安装", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            if let error = aiService.lastError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .onAppear {
+            aiService.refreshRecentSessions()
+        }
+    }
+}
+
+private struct AIToolToggleRow: View {
+    let tool: AIToolType
+    let sessions: [AgentRecentSession]
+    let isLoadingSessions: Bool
+    let isCurrentRoute: Bool
+    @Binding var isEnabled: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                if let icon = tool.brandIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(tool.baseTool == .codexCLI ? 0 : 2)
+                } else {
+                    Image(systemName: tool.iconSystemName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(tool.displayName)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Text(tool.endpointDetail)
+                    .font(.caption2)
+                    .foregroundStyle(tool.canSendMessages ? Color.secondary : Color.orange)
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    statusBadge(installStatusText, color: tool.canSendMessages ? .green : .orange)
+                    statusBadge(routeStatusText, color: routeStatusColor)
+                    statusBadge(sessionStatusText, color: sessionStatusColor)
+                    if isCurrentRoute {
+                        statusBadge("当前路由", color: .blue)
+                    }
+                }
+            }
+
+            Spacer()
+
+            Toggle("", isOn: $isEnabled)
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .disabled(!tool.canSendMessages)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(isEnabled && tool.canSendMessages ? 0.48 : 0.26))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.30), lineWidth: 1)
+                )
+        )
+        .opacity(tool.canSendMessages ? 1 : 0.62)
+    }
+
+    private var installStatusText: String {
+        tool.canSendMessages ? "CLI 已安装" : "未检测到 CLI"
+    }
+
+    private var routeStatusText: String {
+        if !tool.canSendMessages {
+            return "不可路由"
+        }
+        return isEnabled ? "Bridge 可路由" : "已关闭"
+    }
+
+    private var routeStatusColor: Color {
+        if !tool.canSendMessages {
+            return .orange
+        }
+        return isEnabled ? .green : .secondary
+    }
+
+    private var sessionStatusText: String {
+        if isLoadingSessions {
+            return "读取 session"
+        }
+        if !tool.canSendMessages {
+            return "无 session"
+        }
+        if sessions.isEmpty {
+            return "无 recent session"
+        }
+        return "recent \(sessions.count) 个"
+    }
+
+    private var sessionStatusColor: Color {
+        if isLoadingSessions {
+            return .blue
+        }
+        if !tool.canSendMessages || sessions.isEmpty {
+            return .secondary
+        }
+        return .green
+    }
+
+    private func statusBadge(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(color.opacity(0.12))
+            )
+    }
+}
+
+private struct LegacyAIToolsSection: View {
     @Bindable var aiService: AIIntegrationService
     @State private var testMessage: String = ""
     @State private var screenCaptureStatus = PermissionCoordinator.screenCaptureStatus
@@ -624,7 +899,7 @@ private struct AIToolRow: View {
 
 // MARK: - IM Channels Section
 
-private struct IMChannelsSection: View {
+struct IMChannelsSection: View {
     @Bindable var imService: IMChannelService
 
     var body: some View {
@@ -964,7 +1239,7 @@ private struct WeChatLoginSheet: View {
 
 // MARK: - Scheduled Tasks Section
 
-private struct ScheduledTasksSection: View {
+struct ScheduledTasksSection: View {
     @Bindable var taskService: ScheduledTaskService
     let aiService: AIIntegrationService
     let imService: IMChannelService
@@ -1564,6 +1839,15 @@ private func headerText(_ text: String) -> some View {
     Text(text)
         .font(.caption)
         .foregroundStyle(.secondary)
+}
+
+private var settingsCardBackground: some View {
+    RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(Color.white.opacity(0.42))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.30), lineWidth: 1)
+        )
 }
 
 private func sectionLabel(_ text: String) -> some View {

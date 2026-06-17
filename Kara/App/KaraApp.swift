@@ -144,7 +144,10 @@ private enum MenuBarCapsuleImageRenderer {
 
         let iconFrame = NSRect(x: 5, y: 2, width: 20, height: 20)
 
-        if let icon = tool?.brandIcon {
+        if tool?.baseTool == .codexCLI {
+            NSColor(calibratedRed: 0.04, green: 0.25, blue: 1.0, alpha: 1.0).setFill()
+            NSBezierPath(ovalIn: iconFrame.insetBy(dx: 2, dy: 2)).fill()
+        } else if let icon = tool?.brandIcon {
             let inset: CGFloat = tool?.baseTool == .codexCLI ? -1.2 : 1.8
             icon.draw(
                 in: iconFrame.insetBy(dx: inset, dy: inset),
@@ -282,6 +285,23 @@ private struct KaraMenuPanel: View {
     @State private var showingSettings = false
     @State private var isEditingRequest = false
     @State private var draftText = ""
+    @State private var selectedHomePage: HomePage = .request
+
+    private enum HomePage: String, CaseIterable, Identifiable {
+        case request = "请求"
+        case im = "IM 通道"
+        case tasks = "定时任务"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .request: return "waveform"
+            case .im: return "message"
+            case .tasks: return "clock"
+            }
+        }
+    }
 
     var body: some View {
         Group {
@@ -297,21 +317,23 @@ private struct KaraMenuPanel: View {
 
     private var runtimePanel: some View {
         VStack(spacing: 0) {
-            runtimeHeader
+            homePageTabs
 
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    retainedInputSection
-                    errorSection
-                    bridgeSection
-                    permissionSection
-                    actionGrid
-                    editSection
+                switch selectedHomePage {
+                case .request:
+                    requestPage
+                case .im:
+                    IMChannelsSection(imService: appModel.imService)
+                case .tasks:
+                    ScheduledTasksSection(
+                        taskService: appModel.taskService,
+                        aiService: appModel.aiService,
+                        imService: appModel.imService
+                    )
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
             }
 
             Divider()
@@ -341,43 +363,43 @@ private struct KaraMenuPanel: View {
             Divider()
 
             SettingsPanelView(
-                aiService: appModel.aiService,
-                imService: appModel.imService,
-                taskService: appModel.taskService
+                aiService: appModel.aiService
             )
         }
     }
 
-    private var runtimeHeader: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(headerTint.opacity(0.16))
-                Image(systemName: headerIcon)
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(headerTint)
+    private var homePageTabs: some View {
+        HStack(spacing: 8) {
+            ForEach(HomePage.allCases) { page in
+                Button {
+                    selectedHomePage = page
+                } label: {
+                    Label(page.rawValue, systemImage: page.icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .contentShape(Rectangle())
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(selectedHomePage == page ? Color.accentColor.opacity(0.16) : Color.clear)
+                        )
+                        .foregroundStyle(selectedHomePage == page ? Color.accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
             }
-            .frame(width: 48, height: 48)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+    }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(headerTitle)
-                    .font(.system(size: 22, weight: .semibold))
-                Text(headerSubtitle)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button {
-                showingSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+    private var requestPage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            retainedInputSection
+            errorSection
+            bridgeSection
+            editSection
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 18)
@@ -402,9 +424,29 @@ private struct KaraMenuPanel: View {
             CircleIcon(systemName: "bubble.left", tint: .blue)
 
             VStack(alignment: .leading, spacing: 7) {
-                Text("转写文本")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text("转写文本")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        Task { await appModel.aiService.retryLastRequest() }
+                    } label: {
+                        Label("重发", systemImage: "arrow.clockwise")
+                    }
+                    .controlSize(.small)
+                    .disabled(displayedRequest == nil)
+
+                    Button {
+                        beginEditingRequest()
+                    } label: {
+                        Label(isEditingRequest ? "收起" : "编辑", systemImage: "pencil")
+                    }
+                    .controlSize(.small)
+                    .disabled(displayedRequest == nil)
+                }
 
                 Text(displayTranscript)
                     .font(.system(size: 18, weight: .medium))
@@ -473,35 +515,6 @@ private struct KaraMenuPanel: View {
         }
     }
 
-    private var permissionSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("权限状态")
-
-            VStack(spacing: 0) {
-                PermissionStatusRow(
-                    icon: "mic",
-                    title: "麦克风",
-                    isGranted: PermissionCoordinator.microphoneStatus == .granted
-                )
-                Divider()
-                    .padding(.leading, 52)
-                PermissionStatusRow(
-                    icon: "waveform",
-                    title: "语音识别",
-                    isGranted: SFSpeechRecognizer.authorizationStatus() == .authorized
-                )
-                Divider()
-                    .padding(.leading, 52)
-                PermissionStatusRow(
-                    icon: "display",
-                    title: "屏幕录制",
-                    isGranted: PermissionCoordinator.hasScreenCaptureAccess()
-                )
-            }
-            .background(panelCardBackground)
-        }
-    }
-
     private var bridgeSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle("Agent Bridge")
@@ -512,10 +525,7 @@ private struct KaraMenuPanel: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(bridgeStateText)
                         .font(.system(size: 16, weight: .semibold))
-                    Text(bridgeDetailText)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                    bridgeRouteDetail
                 }
 
                 Spacer()
@@ -526,50 +536,6 @@ private struct KaraMenuPanel: View {
             }
             .padding(16)
             .background(panelCardBackground)
-        }
-    }
-
-    private var actionGrid: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                Button {
-                    Task { await appModel.aiService.retryLastRequest() }
-                } label: {
-                    Label("重发", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(displayedRequest == nil)
-
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label("换 Agent 发送", systemImage: "arrow.left.arrow.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .controlSize(.large)
-            }
-
-            HStack(spacing: 10) {
-                Button {
-                    beginEditingRequest()
-                } label: {
-                    Label(isEditingRequest ? "收起编辑" : "编辑后发送", systemImage: "pencil")
-                        .frame(maxWidth: .infinity)
-                }
-                .controlSize(.large)
-                .disabled(displayedRequest == nil)
-
-                Button {
-                    copyError()
-                } label: {
-                    Label("复制错误", systemImage: "doc.on.doc")
-                        .frame(maxWidth: .infinity)
-                }
-                .controlSize(.large)
-                .disabled(errorText == nil)
-            }
         }
     }
 
@@ -617,20 +583,22 @@ private struct KaraMenuPanel: View {
 
     private var footer: some View {
         HStack(spacing: 18) {
+            Button {
+                showingSettings = true
+            } label: {
+                Label("设置", systemImage: "gearshape")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            Text("|")
+                .foregroundStyle(.tertiary)
+
             Button("查看日志") {
                 openLogs()
             }
             .buttonStyle(.plain)
             .foregroundStyle(.blue)
-
-            Text("|")
-                .foregroundStyle(.tertiary)
-
-            Button("打开设置") {
-                showingSettings = true
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
 
             Spacer()
 
@@ -659,26 +627,6 @@ private struct KaraMenuPanel: View {
             )
     }
 
-    private var headerTitle: String {
-        if case .failed = appModel.aiService.deliveryState {
-            return "需要处理"
-        }
-        if appModel.isRecording {
-            return "正在听"
-        }
-        return appModel.menuBarTool?.compactDisplayName ?? "Kara"
-    }
-
-    private var headerSubtitle: String {
-        if case .failed = appModel.aiService.deliveryState {
-            return "请求未发送成功"
-        }
-        if appModel.isRecording {
-            return "松开 Option 后发送"
-        }
-        return "语音会发送给当前 Agent"
-    }
-
     private var bridgeStateText: String {
         switch appModel.aiService.bridgeService.state {
         case .initializing:
@@ -694,11 +642,21 @@ private struct KaraMenuPanel: View {
         }
     }
 
-    private var bridgeDetailText: String {
-        if let reason = appModel.aiService.bridgeService.lastRouteReason {
-            return reason
+    @ViewBuilder
+    private var bridgeRouteDetail: some View {
+        if let route = appModel.aiService.bridgeService.lastRoute {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Agent：\(route.target.tool.compactDisplayName) CLI")
+                Text("Session：\(bridgeSessionText(route.target.session))")
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        } else {
+            Text("等待首次路由")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
         }
-        return "Kara 会通过常驻 Bridge 路由到合适的 Agent/session"
     }
 
     private var bridgeTint: Color {
@@ -716,18 +674,16 @@ private struct KaraMenuPanel: View {
         }
     }
 
-    private var headerIcon: String {
-        if case .failed = appModel.aiService.deliveryState {
-            return "exclamationmark"
+    private func bridgeSessionText(_ session: AgentSession) -> String {
+        let title = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty {
+            return title
         }
-        return appModel.isRecording ? "mic.fill" : "waveform"
-    }
-
-    private var headerTint: Color {
-        if case .failed = appModel.aiService.deliveryState {
-            return .red
+        if let externalID = session.externalID?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !externalID.isEmpty {
+            return externalID
         }
-        return appModel.isRecording ? .red : .blue
+        return AgentSession.defaultTitle
     }
 
     private var activeRequest: AgentDeliveryRequest? {
@@ -906,39 +862,6 @@ private struct ScreenshotPreview: View {
     }
 }
 
-private struct PermissionStatusRow: View {
-    let icon: String
-    let title: String
-    let isGranted: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(Color.primary.opacity(0.06))
-                .frame(width: 30, height: 30)
-                .overlay(
-                    Image(systemName: icon)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
-                )
-
-            Text(title)
-                .font(.system(size: 15, weight: .medium))
-
-            Spacer()
-
-            Text(isGranted ? "已授权" : "未授权")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isGranted ? .green : .orange)
-
-            Image(systemName: isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(isGranted ? .green : .orange)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-    }
-}
-
 // MARK: - App Model
 
 @MainActor
@@ -964,23 +887,25 @@ final class KaraAppModel {
 
     var menuBarSessionLabel: String {
         if isRecording {
-            return Self.liveTranscriptLabel(from: transcribedText)
+            return "录音中"
         }
 
         if let statusLabel = aiService.deliveryState.menuLabel {
             return statusLabel
         }
 
-        let trimmed = aiService.selectedSession.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return "new session"
+        switch aiService.bridgeService.state {
+        case .initializing:
+            return "启动中"
+        case .waiting:
+            return aiService.enabledTools.isEmpty ? "未启用" : "就绪"
+        case .running:
+            return "执行中"
+        case .draining:
+            return "停止中"
+        case .done:
+            return "已停止"
         }
-
-        if trimmed == "new session" {
-            return trimmed
-        }
-
-        return String(trimmed.prefix(5))
     }
 
     init() {
@@ -1108,18 +1033,6 @@ final class KaraAppModel {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         return parts.joined(separator: " ")
-    }
-
-    private static func liveTranscriptLabel(from text: String) -> String {
-        let cleaned = text
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !cleaned.isEmpty else {
-            return "听写中"
-        }
-
-        return String(cleaned.suffix(9))
     }
 
     private static func captureCurrentMouseScreen() async -> URL? {

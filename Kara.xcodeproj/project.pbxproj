@@ -10,7 +10,11 @@
 		078DAEFF0953375976F14F2F /* IMPlatformType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69FCBD63634BCA0A734864AA /* IMPlatformType.swift */; };
 		1D32192C70FF46ACAF2292BF /* AIIntegrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB15D7A0FE174C96D61B3BAC /* AIIntegrationService.swift */; };
 		1E51292A5FF8167DBBE16ABE /* PermissionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE331A68595D1F31CB58B68D /* PermissionCoordinator.swift */; };
+		2931A836F9417705614C3051 /* AgentBridgeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF78D3C1BB014C7D2B2563E8 /* AgentBridgeModels.swift */; };
+		2E7F8BF791F557822FA135AE /* AgentSessionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3966B3D6B95CD9CA63BB1AD5 /* AgentSessionRouter.swift */; };
 		42138DCFB33E3B491FDE9A82 /* AIToolType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 816E1AB43C8AD1B477267F87 /* AIToolType.swift */; };
+		468E6A4F39EA34A4DEF35F82 /* AgentCLIAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E33F40ED901713814EA3EA3 /* AgentCLIAdapter.swift */; };
+		631F1BF6397DE60910A6A8F9 /* AgentBridgeEventStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FB1B31DEF74A9E2CE4C01E9 /* AgentBridgeEventStore.swift */; };
 		704C4D799F2B715C647E5B40 /* KaraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288866FDD76974B0E59BC61D /* KaraApp.swift */; };
 		71F53E66D12771912636BE41 /* CursorCompanionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01640ED06FE3645EFADB413D /* CursorCompanionController.swift */; };
 		7456E04FF44ACD87355A9B0F /* WChatClawSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CE0ABD2BCAA055698B641876 /* WChatClawSwift */; };
@@ -20,6 +24,7 @@
 		C918AF5A47B701F2C710E63F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AFA6EBD546DEDD0A8783428B /* Assets.xcassets */; };
 		CD8B2DCC89AAB62C74FF077B /* AIHotkeyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF495DB9BB709363C41302C0 /* AIHotkeyController.swift */; };
 		D0AF4829925B6A1B6E105783 /* CursorCompanionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016C9B6CA96B216F469EDE2F /* CursorCompanionModel.swift */; };
+		D10CCF32270EE7E606E54B19 /* AgentBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8654E6616FDF2421AF290978 /* AgentBridgeService.swift */; };
 		DCDD5A94DF2C73312B61B159 /* IMChannelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EC0324CECC75DEE42DC05DD /* IMChannelService.swift */; };
 		FC9CD0877A76018B86D424FB /* ScheduledTaskService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3A35B1E23F7005B78572F9 /* ScheduledTaskService.swift */; };
 /* End PBXBuildFile section */
@@ -29,15 +34,20 @@
 		016C9B6CA96B216F469EDE2F /* CursorCompanionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorCompanionModel.swift; sourceTree = "<group>"; };
 		1537E6235899A2BA874918A5 /* Kara.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kara.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		288866FDD76974B0E59BC61D /* KaraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaraApp.swift; sourceTree = "<group>"; };
+		3966B3D6B95CD9CA63BB1AD5 /* AgentSessionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSessionRouter.swift; sourceTree = "<group>"; };
 		4D3A35B1E23F7005B78572F9 /* ScheduledTaskService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledTaskService.swift; sourceTree = "<group>"; };
 		4EC0324CECC75DEE42DC05DD /* IMChannelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMChannelService.swift; sourceTree = "<group>"; };
+		4FB1B31DEF74A9E2CE4C01E9 /* AgentBridgeEventStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBridgeEventStore.swift; sourceTree = "<group>"; };
 		67D64C4053C8DF42CF35AC6D /* Kara.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Kara.entitlements; sourceTree = "<group>"; };
 		69FCBD63634BCA0A734864AA /* IMPlatformType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMPlatformType.swift; sourceTree = "<group>"; };
 		7080B46EE0F6376BC8B4C186 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		759BEBDF30BA51B21F002328 /* CursorCompanionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorCompanionView.swift; sourceTree = "<group>"; };
 		816E1AB43C8AD1B477267F87 /* AIToolType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIToolType.swift; sourceTree = "<group>"; };
+		8654E6616FDF2421AF290978 /* AgentBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBridgeService.swift; sourceTree = "<group>"; };
+		9E33F40ED901713814EA3EA3 /* AgentCLIAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentCLIAdapter.swift; sourceTree = "<group>"; };
 		AFA6EBD546DEDD0A8783428B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BE331A68595D1F31CB58B68D /* PermissionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCoordinator.swift; sourceTree = "<group>"; };
+		BF78D3C1BB014C7D2B2563E8 /* AgentBridgeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBridgeModels.swift; sourceTree = "<group>"; };
 		CF495DB9BB709363C41302C0 /* AIHotkeyController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIHotkeyController.swift; sourceTree = "<group>"; };
 		DB15D7A0FE174C96D61B3BAC /* AIIntegrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIIntegrationService.swift; sourceTree = "<group>"; };
 		F0A59F6CEDD0766080900C55 /* SettingsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanelView.swift; sourceTree = "<group>"; };
@@ -75,6 +85,7 @@
 		45F8464E9AE069D9058FAD1F /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				774472D609471B189CC41F03 /* AgentBridge */,
 				849C93D724883524F41B8F2C /* AIIntegration */,
 				64A0A5CA82B0E727DCB5FA23 /* CursorCompanion */,
 				A57CF7669269BEC2491A3DF8 /* IMChannel */,
@@ -92,6 +103,18 @@
 				759BEBDF30BA51B21F002328 /* CursorCompanionView.swift */,
 			);
 			path = CursorCompanion;
+			sourceTree = "<group>";
+		};
+		774472D609471B189CC41F03 /* AgentBridge */ = {
+			isa = PBXGroup;
+			children = (
+				4FB1B31DEF74A9E2CE4C01E9 /* AgentBridgeEventStore.swift */,
+				BF78D3C1BB014C7D2B2563E8 /* AgentBridgeModels.swift */,
+				8654E6616FDF2421AF290978 /* AgentBridgeService.swift */,
+				9E33F40ED901713814EA3EA3 /* AgentCLIAdapter.swift */,
+				3966B3D6B95CD9CA63BB1AD5 /* AgentSessionRouter.swift */,
+			);
+			path = AgentBridge;
 			sourceTree = "<group>";
 		};
 		849C93D724883524F41B8F2C /* AIIntegration */ = {
@@ -246,6 +269,11 @@
 				CD8B2DCC89AAB62C74FF077B /* AIHotkeyController.swift in Sources */,
 				1D32192C70FF46ACAF2292BF /* AIIntegrationService.swift in Sources */,
 				42138DCFB33E3B491FDE9A82 /* AIToolType.swift in Sources */,
+				631F1BF6397DE60910A6A8F9 /* AgentBridgeEventStore.swift in Sources */,
+				2931A836F9417705614C3051 /* AgentBridgeModels.swift in Sources */,
+				D10CCF32270EE7E606E54B19 /* AgentBridgeService.swift in Sources */,
+				468E6A4F39EA34A4DEF35F82 /* AgentCLIAdapter.swift in Sources */,
+				2E7F8BF791F557822FA135AE /* AgentSessionRouter.swift in Sources */,
 				71F53E66D12771912636BE41 /* CursorCompanionController.swift in Sources */,
 				D0AF4829925B6A1B6E105783 /* CursorCompanionModel.swift in Sources */,
 				A1F17978A9D5B913B473EFC0 /* CursorCompanionView.swift in Sources */,

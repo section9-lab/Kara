@@ -148,6 +148,7 @@ final class AIIntegrationService {
     var lastError: String?
     var lastRequest: AgentDeliveryRequest?
     var lastFailedRequest: AgentDeliveryRequest?
+    let bridgeService = AgentBridgeService()
 
     private let defaultsKey = "Kara.selectedAITool"
     private let sessionDefaultsKey = "Kara.selectedAgentSession"
@@ -283,7 +284,11 @@ final class AIIntegrationService {
             return fail("没有可重发的请求")
         }
 
-        return await deliverText(request.text, screenshotURL: request.screenshotURL)
+        return await deliverText(
+            request.text,
+            screenshotURL: request.screenshotURL,
+            forcedTarget: request.target
+        )
     }
 
     /// Send the given text to the currently selected AI tool.
@@ -312,7 +317,11 @@ final class AIIntegrationService {
     }
 
     @discardableResult
-    func deliverText(_ text: String, screenshotURL: URL? = nil) async -> AgentDeliveryResult {
+    func deliverText(
+        _ text: String,
+        screenshotURL: URL? = nil,
+        forcedTarget: AgentTarget? = nil
+    ) async -> AgentDeliveryResult {
         clearStateTask?.cancel()
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -320,35 +329,41 @@ final class AIIntegrationService {
             return fail("没有可发送的文本")
         }
 
-        guard let tool = preferredTool else {
+        guard preferredTool != nil || forcedTarget != nil else {
             Self.log("deliverText failed: no selected tool")
             return fail("未选择 AI 工具")
         }
 
-        if selectedTool != tool {
+        if let tool = forcedTarget?.tool.baseTool ?? preferredTool,
+           selectedTool != tool {
             selectedTool = tool
         }
 
         lastError = nil
         lastResponse = nil
 
-        guard let endpoint = endpoint(for: tool) else {
-            Self.log("deliverText failed: endpoint unavailable for \(tool.rawValue)")
-            return fail("\(tool.displayName) 未检测到可用安装")
+        Self.log("bridge turn start: session=\(selectedSession.externalID ?? "new")")
+        let bridgeResult = await bridgeService.startTurn(
+            text: trimmedText,
+            screenshotURL: screenshotURL,
+            selectedTool: forcedTarget?.tool.baseTool ?? preferredTool,
+            selectedSession: selectedSession,
+            forcedTarget: forcedTarget,
+            onRequestReady: { [weak self] request in
+                guard let self else { return }
+                self.lastRequest = request
+                self.deliveryState = .sending(request)
+                self.deliveryState = .running(request)
+            }
+        )
+        Self.log("bridge turn exited: code=\(bridgeResult.exitCode), output=\(Self.previewText(bridgeResult.output))")
+
+        guard let request = bridgeResult.request else {
+            return fail(bridgeResult.output)
         }
 
-        let target = AgentTarget(tool: tool, endpoint: endpoint, session: selectedSession)
-        let request = AgentDeliveryRequest(text: trimmedText, screenshotURL: screenshotURL, target: target)
-        lastRequest = request
-
-        deliveryState = .sending(request)
-        deliveryState = .running(request)
-        Self.log("deliverText running: tool=\(tool.rawValue), session=\(selectedSession.externalID ?? "new")")
-        let result = await runCLI(request: request)
-        Self.log("deliverText CLI exited: code=\(result.exitCode), output=\(Self.previewText(result.output))")
-
-        if result.exitCode == 0 {
-            lastResponse = result.output
+        if bridgeResult.exitCode == 0 {
+            lastResponse = bridgeResult.output
             lastFailedRequest = nil
             deliveryState = .completed(request)
             scheduleStateReset()
@@ -356,7 +371,7 @@ final class AIIntegrationService {
         }
 
         return fail(
-            result.output.isEmpty ? "CLI 执行失败，退出码 \(result.exitCode)" : result.output,
+            bridgeResult.output.isEmpty ? "CLI 执行失败，退出码 \(bridgeResult.exitCode)" : bridgeResult.output,
             request: request
         )
     }

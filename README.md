@@ -2,7 +2,7 @@
 
 Kara is a native macOS menu bar assistant for sending voice commands, with screen context, to local AI coding agents.
 
-Hold the global hotkey, speak what you want, and Kara transcribes your speech, captures the current screen, then sends both to your selected agent such as Codex CLI, Claude CLI, or Hermes CLI.
+Hold the global hotkey, speak what you want, and Kara transcribes your speech, captures the current screen, then routes both through its Agent Bridge to a local agent such as Codex CLI, Claude CLI, or Hermes CLI.
 
 ## What Kara Does
 
@@ -10,19 +10,37 @@ Hold the global hotkey, speak what you want, and Kara transcribes your speech, c
 - Records push-to-talk speech from the microphone
 - Transcribes speech locally with Apple Speech APIs
 - Captures the current screen at the start of each voice request
-- Sends the transcript and screenshot to the selected CLI agent
+- Routes the transcript and screenshot through a long-running Agent Bridge
+- Reuses the last successful agent/session unless the user switches target
+- Persists bridge events to support replay and diagnostics
 - Supports Codex, Claude, and Hermes command-line targets
 - Lets you pick recent agent sessions when available
 - Provides WeChat channel integration for forwarding messages
 - Supports scheduled tasks that can run agent prompts on a cadence
 
+## Agent Bridge
+
+Kara uses an in-app Agent Bridge runtime between voice capture and CLI execution. The bridge owns:
+
+- request turn lifecycle
+- frontmost app and screenshot context capture
+- agent/session routing
+- monotonic event sequencing
+- JSONL event log persistence under `~/Library/Application Support/Kara/Bridge`
+- replay support for diagnostics and recovery
+- last-successful target reuse
+
+This keeps the normal workflow simple: speak first, switch Agent only when needed.
+
 ## Current Workflow
 
-1. Choose an AI tool from Kara's menu bar panel.
+1. Choose an AI tool once, or let Kara pick the first available supported agent.
 2. Grant microphone access and screen recording access when prompted.
 3. Hold the voice hotkey and speak your request.
-4. Release the hotkey to send the transcript plus screenshot to the selected agent.
-5. Kara shows delivery status in the menu bar and stores diagnostic logs under `~/Library/Logs/Kara`.
+4. Release the hotkey to send the transcript plus screenshot through Agent Bridge.
+5. Kara routes to the last successful agent/session by default.
+6. If delivery fails, Kara keeps the transcript and screenshot so you can retry, edit, or switch Agent.
+7. Kara shows delivery status in the menu bar and stores diagnostic logs under `~/Library/Logs/Kara`.
 
 ## Permissions
 

@@ -305,6 +305,7 @@ private struct KaraMenuPanel: View {
                 VStack(alignment: .leading, spacing: 20) {
                     retainedInputSection
                     errorSection
+                    bridgeSection
                     permissionSection
                     actionGrid
                     editSection
@@ -501,6 +502,33 @@ private struct KaraMenuPanel: View {
         }
     }
 
+    private var bridgeSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Agent Bridge")
+
+            HStack(spacing: 14) {
+                CircleIcon(systemName: "point.3.connected.trianglepath.dotted", tint: bridgeTint)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(bridgeStateText)
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(bridgeDetailText)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Text("#\(appModel.aiService.bridgeService.lastSeq)")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .background(panelCardBackground)
+        }
+    }
+
     private var actionGrid: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
@@ -649,6 +677,43 @@ private struct KaraMenuPanel: View {
             return "松开 Option 后发送"
         }
         return "语音会发送给当前 Agent"
+    }
+
+    private var bridgeStateText: String {
+        switch appModel.aiService.bridgeService.state {
+        case .initializing:
+            return "Bridge 初始化中"
+        case .waiting:
+            return "Bridge 已连接"
+        case .running:
+            return "Agent 正在执行"
+        case .draining:
+            return "正在停止当前请求"
+        case .done:
+            return "Bridge 已断开"
+        }
+    }
+
+    private var bridgeDetailText: String {
+        if let reason = appModel.aiService.bridgeService.lastRouteReason {
+            return reason
+        }
+        return "Kara 会通过常驻 Bridge 路由到合适的 Agent/session"
+    }
+
+    private var bridgeTint: Color {
+        switch appModel.aiService.bridgeService.state {
+        case .initializing:
+            return .orange
+        case .waiting:
+            return .green
+        case .running:
+            return .blue
+        case .draining:
+            return .orange
+        case .done:
+            return .secondary
+        }
     }
 
     private var headerIcon: String {

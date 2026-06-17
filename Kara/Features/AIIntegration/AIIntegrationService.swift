@@ -41,7 +41,7 @@ struct AgentRecentSession: Identifiable, Equatable {
     var displayTime: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
-        formatter.locale = Locale(identifier: "zh-CN")
+        formatter.locale = Locale(identifier: "en_US")
         return formatter.localizedString(for: updatedAt, relativeTo: Date())
     }
 
@@ -86,34 +86,34 @@ enum AgentDeliveryState: Equatable {
         case .idle:
             return nil
         case .transcribing:
-            return "转写中"
+            return "Transcribing"
         case .sending:
-            return "发送中"
+            return "Sending"
         case .delivered:
-            return "已提交"
+            return "Submitted"
         case .running:
-            return "执行中"
+            return "Running"
         case .completed:
-            return "完成"
+            return "Done"
         case .failed:
-            return "失败"
+            return "Failed"
         }
     }
 
     var detailText: String {
         switch self {
         case .idle:
-            return "语音会发送给当前 Agent"
+            return "Voice will be sent to the current Agent"
         case .transcribing:
-            return "正在整理语音文本"
+            return "Preparing transcript"
         case .sending(let request):
-            return "正在发送到 \(request.target.tool.compactDisplayName)"
+            return "Sending to \(request.target.tool.compactDisplayName)"
         case .delivered(let request):
-            return "已提交到 \(request.target.tool.compactDisplayName)"
+            return "Submitted to \(request.target.tool.compactDisplayName)"
         case .running(let request):
-            return "\(request.target.tool.compactDisplayName) CLI 正在执行"
+            return "\(request.target.tool.compactDisplayName) CLI is running"
         case .completed(let request):
-            return "\(request.target.tool.compactDisplayName) CLI 已完成"
+            return "\(request.target.tool.compactDisplayName) CLI completed"
         case .failed(let message):
             return message
         }
@@ -311,7 +311,7 @@ final class AIIntegrationService {
     @discardableResult
     func retryLastRequest() async -> AgentDeliveryResult {
         guard let request = lastFailedRequest ?? lastRequest else {
-            return fail("没有可重发的请求")
+            return fail("No request available to retry")
         }
 
         return await deliverText(
@@ -336,13 +336,13 @@ final class AIIntegrationService {
         case .completed:
             let reply = lastResponse?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             Self.log("deliverTextForReply completed: \(Self.previewText(reply))")
-            return reply.isEmpty ? "已执行完成" : reply
+            return reply.isEmpty ? "Completed" : reply
         case .failed(let message):
             Self.log("deliverTextForReply failed: \(message)")
             throw AIReplyError(message: message)
         default:
             Self.log("deliverTextForReply ended in non-final state")
-            throw AIReplyError(message: "AI 执行未完成")
+            throw AIReplyError(message: "AI execution has not completed")
         }
     }
 
@@ -356,12 +356,12 @@ final class AIIntegrationService {
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else {
-            return fail("没有可发送的文本")
+            return fail("No text to send")
         }
 
         guard preferredTool != nil || forcedTarget != nil else {
             Self.log("deliverText failed: no selected tool")
-            return fail("未选择 AI 工具")
+            return fail("No AI tool selected")
         }
 
         if let tool = forcedTarget?.tool.baseTool ?? preferredTool,
@@ -402,7 +402,7 @@ final class AIIntegrationService {
         }
 
         return fail(
-            bridgeResult.output.isEmpty ? "CLI 执行失败，退出码 \(bridgeResult.exitCode)" : bridgeResult.output,
+            bridgeResult.output.isEmpty ? "CLI failed with exit code \(bridgeResult.exitCode)" : bridgeResult.output,
             request: request
         )
     }
@@ -455,7 +455,7 @@ final class AIIntegrationService {
 
     private func runCLI(request: AgentDeliveryRequest) async -> CLIExecutionResult {
         guard case .cli(let command, let arguments) = request.target.endpoint else {
-            return CLIExecutionResult(exitCode: 1, output: "当前目标不是 CLI")
+            return CLIExecutionResult(exitCode: 1, output: "Current target is not a CLI")
         }
 
         let prompt = Self.promptText(for: request)
@@ -540,7 +540,7 @@ final class AIIntegrationService {
                     Self.log("runCLI timeout after \(Int(Self.cliTimeoutSeconds))s")
                     return CLIExecutionResult(
                         exitCode: 124,
-                        output: "Agent 执行超时，请稍后重试或换一个更具体的问题"
+                        output: "Agent execution timed out. Try again later or ask a more specific question."
                     )
                 }
                 outputPipe.fileHandleForReading.readabilityHandler = nil
@@ -607,35 +607,35 @@ final class AIIntegrationService {
 
         if request.target.tool.baseTool == .codexCLI {
             return """
-            语音转写内容：
+            Voice transcript:
             \(request.text)
 
-            同一时刻的屏幕截图已作为图片附件随本次请求发送。
+            A screenshot from the same moment was sent as an image attachment with this request.
 
-            请结合语音转写和截图理解我的意图并执行。
+            Use both the transcript and screenshot to understand my intent and act on it.
             """
         }
 
         if request.target.tool.baseTool == .claudeCLI {
             return """
-            语音转写内容：
+            Voice transcript:
             \(request.text)
 
-            同一时刻的屏幕截图已保存为 PNG 文件：
+            A screenshot from the same moment was saved as a PNG file:
             \(screenshotURL.path)
 
-            这个截图目录已经通过 --add-dir 授权给你读取。请读取这张截图，并结合语音转写理解我的意图并执行。
+            The screenshot directory has been made readable through --add-dir. Read the screenshot, then use it with the transcript to understand my intent and act on it.
             """
         }
 
         return """
-        语音转写内容：
+        Voice transcript:
         \(request.text)
 
-        同一时刻的屏幕截图已保存为 PNG 文件：
+        A screenshot from the same moment was saved as a PNG file:
         \(screenshotURL.path)
 
-        请结合语音转写和这张截图理解我的意图并执行。
+        Use both the transcript and screenshot to understand my intent and act on it.
         """
     }
 

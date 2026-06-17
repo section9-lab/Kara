@@ -67,10 +67,10 @@ enum AIToolType: String, Identifiable, Codable {
 
     var unavailableSendReason: String {
         if isCommandLine {
-            return "未安装"
+            return "Not Installed"
         }
 
-        return "未安装"
+        return "Not Installed"
     }
 
     var isDesktopInstalled: Bool {
@@ -144,7 +144,7 @@ enum AIToolType: String, Identifiable, Codable {
 
     var endpointDetail: String {
         if isCommandLine {
-            return cliExecutableURL?.path ?? "未检测到 CLI"
+            return cliExecutableURL?.path ?? "CLI Not Found"
         }
         return bundleIdentifier
     }

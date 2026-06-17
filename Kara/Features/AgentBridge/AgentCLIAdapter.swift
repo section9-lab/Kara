@@ -19,7 +19,7 @@ enum AgentCLIAdapter {
 
     static func run(request: AgentDeliveryRequest) async -> AgentCLIExecutionResult {
         guard case .cli(let command, let arguments) = request.target.endpoint else {
-            return AgentCLIExecutionResult(exitCode: 1, output: "当前目标不是 CLI")
+            return AgentCLIExecutionResult(exitCode: 1, output: "Current target is not a CLI")
         }
 
         let prompt = promptText(for: request)
@@ -108,7 +108,7 @@ enum AgentCLIAdapter {
                     log("timeout after \(Int(timeoutSeconds))s")
                     return AgentCLIExecutionResult(
                         exitCode: 124,
-                        output: "Agent 执行超时，请稍后重试或换一个更具体的问题"
+                        output: "Agent execution timed out. Try again later or ask a more specific question."
                     )
                 }
 
@@ -188,35 +188,35 @@ enum AgentCLIAdapter {
 
         if request.target.tool.baseTool == .codexCLI {
             return """
-            语音转写内容：
+            Voice transcript:
             \(request.text)
 
-            同一时刻的屏幕截图已作为图片附件随本次请求发送。
+            A screenshot from the same moment was sent as an image attachment with this request.
 
-            请结合语音转写和截图理解我的意图并执行。
+            Use both the transcript and screenshot to understand my intent and act on it.
             """
         }
 
         if request.target.tool.baseTool == .claudeCLI {
             return """
-            语音转写内容：
+            Voice transcript:
             \(request.text)
 
-            同一时刻的屏幕截图已保存为 PNG 文件：
+            A screenshot from the same moment was saved as a PNG file:
             \(screenshotURL.path)
 
-            这个截图目录已经通过 --add-dir 授权给你读取。请读取这张截图，并结合语音转写理解我的意图并执行。
+            The screenshot directory has been made readable through --add-dir. Read the screenshot, then use it with the transcript to understand my intent and act on it.
             """
         }
 
         return """
-        语音转写内容：
+        Voice transcript:
         \(request.text)
 
-        同一时刻的屏幕截图已保存为 PNG 文件：
+        A screenshot from the same moment was saved as a PNG file:
         \(screenshotURL.path)
 
-        请结合语音转写和这张截图理解我的意图并执行。
+        Use both the transcript and screenshot to understand my intent and act on it.
         """
     }
 

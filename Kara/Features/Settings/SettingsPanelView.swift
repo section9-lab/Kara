@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import CoreImage.CIFilterBuiltins
 import Speech
+import UniformTypeIdentifiers
 
 /// Settings for agent availability. Runtime routing is owned by Agent Bridge.
 struct SettingsPanelView: View {
@@ -29,15 +30,15 @@ private struct PermissionsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            headerText("权限状态")
+            headerText("Permissions")
 
             VStack(spacing: 0) {
                 SettingsPermissionStatusRow(
                     icon: "mic",
-                    title: "麦克风",
+                    title: "Microphone",
                     statusText: microphoneStatusText,
                     tint: microphoneStatus == .granted ? .green : .orange,
-                    actionTitle: microphoneStatus == .granted ? nil : "授权"
+                    actionTitle: microphoneStatus == .granted ? nil : "Authorize"
                 ) {
                     Task { await requestMicrophoneAccess() }
                 }
@@ -47,10 +48,10 @@ private struct PermissionsSection: View {
 
                 SettingsPermissionStatusRow(
                     icon: "waveform",
-                    title: "语音识别",
+                    title: "Speech Recognition",
                     statusText: speechStatusText,
                     tint: speechStatus == .authorized ? .green : .orange,
-                    actionTitle: speechStatus == .authorized ? nil : "授权"
+                    actionTitle: speechStatus == .authorized ? nil : "Authorize"
                 ) {
                     requestSpeechRecognitionAccess()
                 }
@@ -60,10 +61,10 @@ private struct PermissionsSection: View {
 
                 SettingsPermissionStatusRow(
                     icon: "display",
-                    title: "屏幕录制",
-                    statusText: screenCaptureStatus == .granted ? "已授权" : "未授权",
+                    title: "Screen Recording",
+                    statusText: screenCaptureStatus == .granted ? "Authorized" : "Not Authorized",
                     tint: screenCaptureStatus == .granted ? .green : .orange,
-                    actionTitle: screenCaptureStatus == .granted ? nil : "授权"
+                    actionTitle: screenCaptureStatus == .granted ? nil : "Authorize"
                 ) {
                     requestScreenCaptureAccess()
                 }
@@ -78,24 +79,24 @@ private struct PermissionsSection: View {
     private var microphoneStatusText: String {
         switch microphoneStatus {
         case .granted:
-            return "已授权"
+            return "Authorized"
         case .denied:
-            return "未授权"
+            return "Not Authorized"
         case .undetermined:
-            return "未请求"
+            return "Not Requested"
         }
     }
 
     private var speechStatusText: String {
         switch speechStatus {
         case .authorized:
-            return "已授权"
+            return "Authorized"
         case .denied, .restricted:
-            return "未授权"
+            return "Not Authorized"
         case .notDetermined:
-            return "未请求"
+            return "Not Requested"
         @unknown default:
-            return "未知"
+            return "Unknown"
         }
     }
 
@@ -179,7 +180,7 @@ private struct AIToolsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            headerText("启用可被 Bridge 路由的 AI 工具")
+            headerText("AI Tools Available to Bridge")
 
             ForEach(AIToolType.allCases) { tool in
                 AIToolToggleRow(
@@ -200,7 +201,7 @@ private struct AIToolsSection: View {
                     .foregroundStyle(.blue)
                     .frame(width: 20)
 
-                Text("这里不选择当前 Agent 或 session。Kara 会由 Agent Bridge 根据上一次成功目标、可用工具和请求上下文自动决定。")
+                Text("This page does not choose the current Agent or session. Kara lets Agent Bridge decide from the last successful target, available tools, and request context.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -213,11 +214,11 @@ private struct AIToolsSection: View {
             )
 
             if aiService.enabledTools.isEmpty {
-                Label("至少开启一个已安装工具，语音请求才可以发送", systemImage: "exclamationmark.triangle.fill")
+                Label("Enable at least one installed tool before sending voice requests", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
             } else if aiService.enabledTools.allSatisfy({ !$0.canSendMessages }) {
-                Label("开启的工具未检测到可用安装", systemImage: "exclamationmark.triangle.fill")
+                Label("Enabled tools do not have a detected installation", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
@@ -273,7 +274,7 @@ private struct AIToolToggleRow: View {
                     statusBadge(routeStatusText, color: routeStatusColor)
                     statusBadge(sessionStatusText, color: sessionStatusColor)
                     if isCurrentRoute {
-                        statusBadge("当前路由", color: .blue)
+                        statusBadge("Current Route", color: .blue)
                     }
                 }
             }
@@ -299,14 +300,14 @@ private struct AIToolToggleRow: View {
     }
 
     private var installStatusText: String {
-        tool.canSendMessages ? "CLI 已安装" : "未检测到 CLI"
+        tool.canSendMessages ? "CLI Installed" : "CLI Not Found"
     }
 
     private var routeStatusText: String {
         if !tool.canSendMessages {
-            return "不可路由"
+            return "Not Routable"
         }
-        return isEnabled ? "Bridge 可路由" : "已关闭"
+        return isEnabled ? "Bridge Routable" : "Disabled"
     }
 
     private var routeStatusColor: Color {
@@ -318,15 +319,15 @@ private struct AIToolToggleRow: View {
 
     private var sessionStatusText: String {
         if isLoadingSessions {
-            return "读取 session"
+            return "Loading Sessions"
         }
         if !tool.canSendMessages {
-            return "无 session"
+            return "No Sessions"
         }
         if sessions.isEmpty {
-            return "无 recent session"
+            return "No Recent Sessions"
         }
-        return "recent \(sessions.count) 个"
+        return "\(sessions.count) Recent"
     }
 
     private var sessionStatusColor: Color {
@@ -360,7 +361,7 @@ private struct LegacyAIToolsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            headerText("选择语音转写的目标 Agent")
+            headerText("Choose the Target Agent for Voice Transcription")
 
             screenCapturePermissionPanel
 
@@ -415,7 +416,7 @@ private struct LegacyAIToolsSection: View {
             Button {
                 requestScreenCaptureAccess()
             } label: {
-                Label("授权截图", systemImage: "rectangle.dashed.badge.record")
+                Label("Authorize Screenshot", systemImage: "rectangle.dashed.badge.record")
             }
             .controlSize(.small)
             .disabled(screenCaptureStatus == .granted)
@@ -426,7 +427,7 @@ private struct LegacyAIToolsSection: View {
             } label: {
                 Image(systemName: "gearshape")
             }
-            .help("打开系统录屏权限设置")
+            .help("Open Screen Recording permission settings")
             .controlSize(.small)
         }
         .padding(.horizontal, 12)
@@ -444,9 +445,9 @@ private struct LegacyAIToolsSection: View {
     private var screenCaptureStatusTitle: String {
         switch screenCaptureStatus {
         case .granted:
-            return "屏幕截图已授权"
+            return "Screenshot Authorized"
         case .denied:
-            return "屏幕截图未授权"
+            return "Screenshot Not Authorized"
         }
     }
 
@@ -486,9 +487,9 @@ private struct LegacyAIToolsSection: View {
             Image(systemName: "exclamationmark.bubble")
                 .font(.title3)
                 .foregroundStyle(.secondary)
-            Text("未检测到已安装的 AI 工具")
+            Text("No Installed AI Tools Detected")
                 .font(.caption.weight(.medium))
-            Text("支持: Claude, Codex, Hermes CLI")
+            Text("Supported: Claude, Codex, Hermes CLI")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -499,7 +500,7 @@ private struct LegacyAIToolsSection: View {
 
     private var testMessagePanel: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("测试消息")
+            Text("Test Message")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
@@ -509,7 +510,7 @@ private struct LegacyAIToolsSection: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 18)
 
-                    TextField("输入测试内容", text: $testMessage, axis: .vertical)
+                    TextField("Enter a test message", text: $testMessage, axis: .vertical)
                         .textFieldStyle(.plain)
                         .font(.callout.weight(.medium))
                         .lineLimit(1...3)
@@ -524,7 +525,7 @@ private struct LegacyAIToolsSection: View {
                             await aiService.deliverText(message)
                         }
                     } label: {
-                        Label("发送", systemImage: "paperplane")
+                        Label("Send", systemImage: "paperplane")
                     }
                     .controlSize(.small)
                     .disabled(
@@ -536,7 +537,7 @@ private struct LegacyAIToolsSection: View {
 
                 if aiService.preferredTool != nil,
                    !aiService.canSendToSelectedTool {
-                    Label("当前 Agent 未检测到可用安装", systemImage: "exclamationmark.triangle")
+                    Label("The current Agent does not have a detected installation", systemImage: "exclamationmark.triangle")
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 }
@@ -544,7 +545,7 @@ private struct LegacyAIToolsSection: View {
                 if let response = aiService.lastResponse,
                    !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("CLI 返回")
+                        Text("CLI Response")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
                         ScrollView {
@@ -731,11 +732,11 @@ private struct NoSessionRow: View {
                     .frame(width: 24, height: 24)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("不指定 Session")
+                    Text("No Session")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    Text("发送到当前 Agent 默认窗口")
+                    Text("Send to the current Agent default window")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -904,7 +905,7 @@ struct IMChannelsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            headerText("配置 IM 通道，接收和转发消息")
+            headerText("Configure IM channels for receiving and forwarding messages")
 
             VStack(spacing: 10) {
                 ForEach(IMPlatformType.visibleIMCases) { platform in
@@ -949,7 +950,7 @@ private struct IMPlatformCard: View {
                         .foregroundStyle(isAvailable ? .primary : .secondary)
 
                     if platform == .wechat, imService.isWeChatConnected {
-                        Text("已连接")
+                        Text("Connected")
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(.green)
                             .padding(.horizontal, 6)
@@ -1020,16 +1021,8 @@ private struct IMPlatformCard: View {
 
     @ViewBuilder
     private var platformIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(iconBackground)
-
-            Image(systemName: platform.iconSystemName)
-                .font(.system(size: 18, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(iconColor)
-        }
-        .frame(width: 34, height: 34)
+        OfficialIMAppIcon(platform: platform)
+            .frame(width: 40, height: 40)
     }
 
     private var isAvailable: Bool {
@@ -1043,53 +1036,41 @@ private struct IMPlatformCard: View {
             case .connected(let accountID):
                 let detail = imService.wechatAgentState.detail
                     .map { " · \($0)" } ?? ""
-                return "通过微信机器人接收并回复用户消息 · \(accountID)\(detail)"
+                return "Receive and reply through the WeChat bot · \(accountID)\(detail)"
             case .connecting:
-                return "正在生成微信扫码登录二维码"
+                return "Generating WeChat login QR code"
             case .waitingForScan:
-                return "请使用手机微信扫码完成连接"
+                return "Scan with WeChat on your phone to connect"
             case .failed(let message):
                 return message
             case .disconnected:
-                return "通过微信机器人接收并回复用户消息"
+                return "Receive and reply through the WeChat bot"
             }
         case .feishu:
-            return "飞书通道稍后支持"
+            return "Feishu support coming later"
+        case .imessage:
+            return "iMessage support coming later"
+        case .telegram:
+            return "Telegram support coming later"
+        case .line:
+            return "LINE support coming later"
+        case .whatsapp:
+            return "WhatsApp support coming later"
         default:
-            return ""
+            return "\(platform.displayName) support coming later"
         }
     }
 
     private var actionTitle: String {
         switch platform {
         case .wechat:
-            return imService.isWeChatConnected ? "断开" : "配置"
+            return imService.isWeChatConnected ? "Disconnect" : "Configure"
         case .feishu:
-            return "稍后"
+            return "Later"
+        case .imessage, .telegram, .line, .whatsapp:
+            return "Later"
         default:
-            return "不可用"
-        }
-    }
-
-    private var iconBackground: Color {
-        switch platform {
-        case .wechat:
-            return Color.green.opacity(0.12)
-        case .feishu:
-            return Color.blue.opacity(0.08)
-        default:
-            return Color.primary.opacity(0.06)
-        }
-    }
-
-    private var iconColor: Color {
-        switch platform {
-        case .wechat:
-            return .green
-        case .feishu:
-            return .blue
-        default:
-            return .secondary
+            return "Unavailable"
         }
     }
 
@@ -1105,6 +1086,105 @@ private struct IMPlatformCard: View {
             return .green
         case .failed:
             return .red
+        }
+    }
+}
+
+private struct OfficialIMAppIcon: View {
+    let platform: IMPlatformType
+
+    var body: some View {
+        Image(nsImage: IMAppIconProvider.icon(for: platform))
+            .resizable()
+            .scaledToFit()
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+}
+
+private enum IMAppIconProvider {
+    static func icon(for platform: IMPlatformType) -> NSImage {
+        for bundleID in platform.iconBundleIdentifiers {
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                return NSWorkspace.shared.icon(forFile: url.path)
+            }
+        }
+
+        for path in platform.iconApplicationPaths where FileManager.default.fileExists(atPath: path) {
+            return NSWorkspace.shared.icon(forFile: path)
+        }
+
+        if let assetName = platform.fallbackIconAssetName,
+           let assetIcon = NSImage(named: NSImage.Name(assetName)) {
+            return assetIcon
+        }
+
+        return NSWorkspace.shared.icon(for: .applicationBundle)
+    }
+}
+
+private extension IMPlatformType {
+    var iconBundleIdentifiers: [String] {
+        switch self {
+        case .wechat:
+            return ["com.tencent.xinWeChat", "com.tencent.WeChat"]
+        case .feishu:
+            return [
+                "com.bytedance.macos.feishu",
+                "com.larksuite.macos.lark",
+                "com.electron.lark",
+                "com.larksuite.larkApp"
+            ]
+        case .imessage:
+            return ["com.apple.MobileSMS"]
+        case .telegram:
+            return ["ru.keepcoder.Telegram", "org.telegram.desktop", "com.tdesktop.Telegram"]
+        case .line:
+            return ["jp.naver.line.mac"]
+        case .whatsapp:
+            return ["net.whatsapp.WhatsApp"]
+        default:
+            return []
+        }
+    }
+
+    var iconApplicationPaths: [String] {
+        switch self {
+        case .wechat:
+            return ["/Applications/WeChat.app", "/Applications/微信.app"]
+        case .feishu:
+            return [
+                "/Applications/飞书.app",
+                "/Applications/Feishu.app",
+                "/Applications/Lark.app",
+                "/Applications/LarkSuite.app"
+            ]
+        case .imessage:
+            return ["/System/Applications/Messages.app"]
+        case .telegram:
+            return ["/Applications/Telegram.app", "/Applications/Telegram Lite.app"]
+        case .line:
+            return ["/Applications/LINE.app"]
+        case .whatsapp:
+            return ["/Applications/WhatsApp.app"]
+        default:
+            return []
+        }
+    }
+
+    var fallbackIconAssetName: String? {
+        switch self {
+        case .wechat:
+            return "IMWechatIcon"
+        case .feishu:
+            return "IMFeishuIcon"
+        case .telegram:
+            return "IMTelegramIcon"
+        case .line:
+            return "IMLineIcon"
+        case .whatsapp:
+            return "IMWhatsAppIcon"
+        default:
+            return nil
         }
     }
 }
@@ -1128,7 +1208,7 @@ private struct WeChatLoginSheet: View {
                     }
                     .offset(y: -10)
 
-                    Text("扫码登录")
+                    Text("Scan to Sign In")
                         .font(.title3.weight(.semibold))
 
                     Text(statusText)
@@ -1163,7 +1243,7 @@ private struct WeChatLoginSheet: View {
             Button {
                 imService.startWeChatLogin()
             } label: {
-                Text("重新生成")
+                Text("Regenerate")
                     .font(.callout.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -1224,15 +1304,15 @@ private struct WeChatLoginSheet: View {
     private var statusText: String {
         switch imService.wechatStatus {
         case .connecting:
-            return "正在生成二维码..."
+            return "Generating QR code..."
         case .waitingForScan:
-            return "请使用微信扫描下方二维码完成连接"
+            return "Scan the QR code with WeChat to connect"
         case .connected:
-            return "微信已连接"
+            return "WeChat connected"
         case .failed(let message):
             return message
         case .disconnected:
-            return "请使用微信扫描下方二维码完成连接"
+            return "Scan the QR code with WeChat to connect"
         }
     }
 }

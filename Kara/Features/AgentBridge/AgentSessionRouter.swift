@@ -12,12 +12,12 @@ struct AgentSessionRouter {
     ) -> Result<AgentBridgeRoute, AgentBridgeRouteError> {
         if let forcedTarget {
             guard enabledTools.contains(forcedTarget.tool.baseTool) else {
-                return .failure(AgentBridgeRouteError(message: "\(forcedTarget.tool.displayName) 已在设置中关闭"))
+                return .failure(AgentBridgeRouteError(message: "\(forcedTarget.tool.displayName) is disabled in Settings"))
             }
             return .success(
                 AgentBridgeRoute(
                     target: forcedTarget,
-                    reason: "使用重试请求绑定的 Agent/session"
+                    reason: "Using the Agent/session bound to this retry"
                 )
             )
         }
@@ -28,7 +28,7 @@ struct AgentSessionRouter {
             return .success(
                 AgentBridgeRoute(
                     target: lastTarget,
-                    reason: "复用上一次成功发送的 Agent/session"
+                    reason: "Reusing the last successful Agent/session"
                 )
             )
         }
@@ -39,11 +39,11 @@ struct AgentSessionRouter {
         } ?? preferredInstalledTool(enabledTools: enabledTools)
 
         guard let tool else {
-            return .failure(AgentBridgeRouteError(message: "未检测到可用 Agent CLI"))
+            return .failure(AgentBridgeRouteError(message: "No available Agent CLI detected"))
         }
 
         guard let endpoint = AgentCLIAdapter.endpoint(for: tool, session: selectedSession) else {
-            return .failure(AgentBridgeRouteError(message: "\(tool.displayName) 未检测到可用安装"))
+            return .failure(AgentBridgeRouteError(message: "\(tool.displayName) installation was not detected"))
         }
 
         let target = AgentTarget(
@@ -55,7 +55,7 @@ struct AgentSessionRouter {
         return .success(
             AgentBridgeRoute(
                 target: target,
-                reason: selectedTool == nil ? "自动选择可用 Agent" : "使用当前选择的 Agent/session"
+                reason: selectedTool == nil ? "Automatically selected an available Agent" : "Using the current Agent/session"
             )
         )
     }

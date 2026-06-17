@@ -7,7 +7,7 @@ import WChatClawSwift
 struct IMChannel: Identifiable, Codable, Hashable {
     let id: UUID
     var platform: IMPlatformType
-    var name: String          // User-given label, e.g. "研发团队"
+    var name: String          // User-given label, e.g. "Engineering Team"
     var webhookURL: String
     var isEnabled: Bool
 
@@ -111,7 +111,7 @@ final class IMChannelService {
                         self.startWeChatAgentIfPossible()
                     } else if result.alreadyConnected {
                         self.loadWeChatConnectionState()
-                        self.wechatStatus = .connected(self.wechatAccountID ?? "微信")
+                        self.wechatStatus = .connected(self.wechatAccountID ?? "WeChat")
                         self.startWeChatAgentIfPossible()
                     } else {
                         self.wechatStatus = .failed(result.message)
@@ -200,7 +200,7 @@ final class IMChannelService {
                         if let senderID = incoming.senderID {
                             do {
                                 try await client.sendText(
-                                    "思考中...",
+                                    "Thinking...",
                                     to: senderID,
                                     account: incoming.account,
                                     contextToken: incoming.contextToken
@@ -217,7 +217,7 @@ final class IMChannelService {
                                 while !Task.isCancelled {
                                     do {
                                         try await client.sendText(
-                                            "还在处理...",
+                                            "Still working...",
                                             to: senderID,
                                             account: incoming.account,
                                             contextToken: incoming.contextToken
@@ -247,7 +247,7 @@ final class IMChannelService {
                                 await reporter.setState(.failed(message), error: message)
                             }
                             Self.log("agent failed: \(message)")
-                            return "执行失败：\(message)"
+                            return "Execution failed: \(message)"
                         }
                     }
 
@@ -272,7 +272,7 @@ final class IMChannelService {
                     Task {
                         await reporter.setState(
                             .failed(error.localizedDescription),
-                            error: "微信监听失败: \(error.localizedDescription)"
+                            error: "WeChat listener failed: \(error.localizedDescription)"
                         )
                     }
                     try? await Task.sleep(for: .seconds(3))
@@ -311,12 +311,12 @@ final class IMChannelService {
     func sendMessage(_ text: String, to channelID: UUID) {
         guard let channel = channels.first(where: { $0.id == channelID }),
               channel.isEnabled else {
-            lastError = "通道不可用"
+            lastError = "Channel unavailable"
             return
         }
 
         guard let url = URL(string: channel.webhookURL), !channel.webhookURL.isEmpty else {
-            lastError = "Webhook URL 无效"
+            lastError = "Invalid webhook URL"
             return
         }
 
@@ -334,10 +334,10 @@ final class IMChannelService {
                 let (_, response) = try await URLSession.shared.data(for: request)
                 if let httpResponse = response as? HTTPURLResponse,
                    !(200...299).contains(httpResponse.statusCode) {
-                    lastError = "发送失败 (HTTP \(httpResponse.statusCode))"
+                    lastError = "Send failed (HTTP \(httpResponse.statusCode))"
                 }
             } catch {
-                lastError = "发送失败: \(error.localizedDescription)"
+                lastError = "Send failed: \(error.localizedDescription)"
             }
         }
     }
@@ -355,6 +355,8 @@ final class IMChannelService {
         let dict: [String: Any]
         switch platform {
         case .wechat:
+            dict = ["text": text]
+        case .imessage:
             dict = ["text": text]
         case .dingtalk:
             dict = [
@@ -375,6 +377,10 @@ final class IMChannelService {
             dict = ["text": text]
         case .telegram:
             // Telegram uses Bot API URL, not webhook
+            dict = ["text": text]
+        case .line:
+            dict = ["text": text]
+        case .whatsapp:
             dict = ["text": text]
         }
         return try? JSONSerialization.data(withJSONObject: dict)
@@ -445,15 +451,15 @@ enum WeChatConnectionStatus: Equatable {
     var label: String {
         switch self {
         case .disconnected:
-            return "未连接"
+            return "Not Connected"
         case .connecting:
-            return "生成中"
+            return "Generating"
         case .waitingForScan:
-            return "等待扫码"
+            return "Waiting for Scan"
         case .connected:
-            return "已连接"
+            return "Connected"
         case .failed:
-            return "连接失败"
+            return "Connection Failed"
         }
     }
 }
@@ -504,15 +510,15 @@ enum WeChatAgentState: Equatable {
     var label: String {
         switch self {
         case .idle:
-            return "未监听"
+            return "Not Listening"
         case .listening:
-            return "监听中"
+            return "Listening"
         case .running:
-            return "执行中"
+            return "Running"
         case .replied:
-            return "已回复"
+            return "Replied"
         case .failed:
-            return "监听异常"
+            return "Listener Error"
         }
     }
 
@@ -521,9 +527,9 @@ enum WeChatAgentState: Equatable {
         case .idle, .listening:
             return nil
         case .running(let text):
-            return "正在处理：\(text)"
+            return "Processing: \(text)"
         case .replied(let text):
-            return "已回复：\(text)"
+            return "Replied: \(text)"
         case .failed(let message):
             return message
         }

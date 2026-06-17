@@ -25,14 +25,14 @@ final class AgentBridgeService {
         if let lastTarget = router.lastSuccessfulTarget() {
             self.lastRoute = AgentBridgeRoute(
                 target: lastTarget,
-                reason: "上一次成功发送的 Agent/session"
+                reason: "Last successful Agent/session"
             )
         }
 
         Task {
             await publish(.bridgeReady, turnID: nil, message: "Agent Bridge ready")
             await setState(.waiting, activeTurnID: nil)
-            recentEvents = await eventStore.recent(limit: 40)
+            recentEvents = await eventStore.recent(limit: 200)
             lastSeq = recentEvents.last?.seq ?? 0
         }
     }
@@ -47,7 +47,7 @@ final class AgentBridgeService {
         onRequestReady: @MainActor @escaping (AgentDeliveryRequest) -> Void
     ) async -> AgentBridgeRunResult {
         if let activeTask {
-            _ = await abort(reason: "新的请求开始，取消上一轮")
+            _ = await abort(reason: "New request started; canceling the previous turn")
             _ = await activeTask.value
         }
 
@@ -74,7 +74,8 @@ final class AgentBridgeService {
 
         await eventStore.writeStartConfig(startConfig)
         await publish(.turnStarted, turnID: turnID, message: "Turn started", payload: [
-            "textPreview": preview(text),
+            "text": text,
+            "textPreview": preview(text, limit: 220),
             "screenshotPath": screenshotURL?.path ?? ""
         ])
         await publish(.contextCaptured, turnID: turnID, message: "Context captured", payload: [
@@ -112,6 +113,7 @@ final class AgentBridgeService {
         await publish(.routed, turnID: turnID, message: route.reason, payload: [
             "tool": route.target.tool.rawValue,
             "session": route.target.session.externalID ?? "new",
+            "sessionTitle": route.target.session.title,
             "projectPath": route.target.session.projectPath ?? ""
         ])
 
@@ -146,13 +148,15 @@ final class AgentBridgeService {
 
         if result.exitCode == 0 {
             router.recordSuccess(route.target)
-            await publish(.turnCompleted, turnID: turnID, message: "Turn completed", payload: [
-                "tool": route.target.tool.rawValue
+            await publish(.turnCompleted, turnID: turnID, message: result.output.isEmpty ? "Agent completed" : result.output, payload: [
+                "tool": route.target.tool.rawValue,
+                "outputPreview": preview(result.output, limit: 520)
             ])
         } else {
             await publish(.turnFailed, turnID: turnID, message: result.output.isEmpty ? "Agent failed" : result.output, payload: [
                 "tool": route.target.tool.rawValue,
-                "exitCode": "\(result.exitCode)"
+                "exitCode": "\(result.exitCode)",
+                "outputPreview": preview(result.output, limit: 520)
             ])
         }
 
@@ -165,7 +169,7 @@ final class AgentBridgeService {
         await publish(.userMessage, turnID: activeTurnID, message: text)
     }
 
-    func abort(reason: String = "用户取消") async -> Bool {
+    func abort(reason: String = "User canceled") async -> Bool {
         guard let activeTurnID else { return false }
         activeTask?.cancel()
         await publish(.turnAborted, turnID: activeTurnID, message: reason)
@@ -204,14 +208,14 @@ final class AgentBridgeService {
         let event = await eventStore.append(kind, turnID: turnID, message: message, payload: payload)
         lastSeq = event.seq
         recentEvents.append(event)
-        if recentEvents.count > 40 {
-            recentEvents.removeFirst(recentEvents.count - 40)
+        if recentEvents.count > 200 {
+            recentEvents.removeFirst(recentEvents.count - 200)
         }
     }
 
-    private func preview(_ text: String) -> String {
+    private func preview(_ text: String, limit: Int = 80) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count > 80 else { return trimmed }
-        return String(trimmed.prefix(80)) + "..."
+        guard trimmed.count > limit else { return trimmed }
+        return String(trimmed.prefix(limit)) + "..."
     }
 }

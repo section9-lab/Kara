@@ -198,9 +198,9 @@ enum SpeechTranscriptionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .transcriberUnavailable:
-            "SpeechTranscriber 当前不可用。"
+            "SpeechTranscriber is currently unavailable."
         case .speechAssetsUnavailable(let status):
-            "语音识别资源不可用：\(status)。"
+            "Speech recognition assets are unavailable: \(status)."
         }
     }
 }

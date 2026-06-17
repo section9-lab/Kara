@@ -286,11 +286,12 @@ private struct KaraMenuPanel: View {
     @State private var isEditingRequest = false
     @State private var draftText = ""
     @State private var selectedHomePage: HomePage = .request
+    @State private var selectedTimelineThread: TimelineSessionThread?
 
     private enum HomePage: String, CaseIterable, Identifiable {
-        case request = "请求"
-        case im = "IM 通道"
-        case tasks = "定时任务"
+        case request = "Request"
+        case im = "IM Channels"
+        case tasks = "Tasks"
 
         var id: String { rawValue }
 
@@ -313,6 +314,9 @@ private struct KaraMenuPanel: View {
         }
         .frame(width: 520, height: 700)
         .background(.regularMaterial)
+        .sheet(item: $selectedTimelineThread) { thread in
+            TimelineThreadSheet(thread: thread)
+        }
     }
 
     private var runtimePanel: some View {
@@ -352,7 +356,7 @@ private struct KaraMenuPanel: View {
                 }
                 .buttonStyle(.borderless)
 
-                Text("设置")
+                Text("Settings")
                     .font(.headline)
 
                 Spacer()
@@ -399,6 +403,7 @@ private struct KaraMenuPanel: View {
             retainedInputSection
             errorSection
             bridgeSection
+            eventTimelineSection
             editSection
         }
         .padding(.horizontal, 20)
@@ -407,7 +412,7 @@ private struct KaraMenuPanel: View {
 
     private var retainedInputSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("保留的输入")
+            sectionTitle("Retained Input")
 
             VStack(spacing: 0) {
                 transcriptRow
@@ -425,7 +430,7 @@ private struct KaraMenuPanel: View {
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 8) {
-                    Text("转写文本")
+                    Text("Transcript")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.secondary)
 
@@ -434,7 +439,7 @@ private struct KaraMenuPanel: View {
                     Button {
                         Task { await appModel.aiService.retryLastRequest() }
                     } label: {
-                        Label("重发", systemImage: "arrow.clockwise")
+                        Label("Retry", systemImage: "arrow.clockwise")
                     }
                     .controlSize(.small)
                     .disabled(displayedRequest == nil)
@@ -442,7 +447,7 @@ private struct KaraMenuPanel: View {
                     Button {
                         beginEditingRequest()
                     } label: {
-                        Label(isEditingRequest ? "收起" : "编辑", systemImage: "pencil")
+                        Label(isEditingRequest ? "Collapse" : "Edit", systemImage: "pencil")
                     }
                     .controlSize(.small)
                     .disabled(displayedRequest == nil)
@@ -463,7 +468,7 @@ private struct KaraMenuPanel: View {
             CircleIcon(systemName: "photo", tint: .green)
 
             VStack(alignment: .leading, spacing: 7) {
-                Text("截图")
+                Text("Screenshot")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.secondary)
 
@@ -490,7 +495,7 @@ private struct KaraMenuPanel: View {
     private var errorSection: some View {
         if let errorText {
             VStack(alignment: .leading, spacing: 10) {
-                sectionTitle("错误原因")
+                sectionTitle("Error")
 
                 HStack(spacing: 14) {
                     CircleIcon(systemName: "xmark", tint: .red)
@@ -539,11 +544,261 @@ private struct KaraMenuPanel: View {
         }
     }
 
+    private var eventTimelineSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("Event Timeline")
+
+            VStack(spacing: 8) {
+                let threads = timelineSessionThreads
+
+                if threads.isEmpty {
+                    HStack(spacing: 12) {
+                        CircleIcon(systemName: "clock", tint: .secondary)
+                        Text("No input or response history yet")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(16)
+                    .background(panelCardBackground)
+                } else {
+                    ForEach(threads) { thread in
+                        Button {
+                            selectedTimelineThread = thread
+                        } label: {
+                            timelineSessionCard(thread)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var timelineTurnCards: [TimelineTurnCard] {
+        Self.buildTimelineCards(from: appModel.aiService.bridgeService.recentEvents)
+    }
+
+    private var timelineSessionThreads: [TimelineSessionThread] {
+        Self.buildTimelineSessionThreads(from: timelineTurnCards)
+    }
+
+    private func timelineSessionCard(_ thread: TimelineSessionThread) -> some View {
+        let card = thread.latestCard
+
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: card.statusIcon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(card.statusTint)
+                .frame(width: 18, height: 18)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(card.question)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(Self.shortTime(card.updatedAt))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+
+                HStack(spacing: 6) {
+                    Text(card.statusLabel)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(card.statusTint)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(card.statusTint.opacity(0.12))
+                        )
+
+                    Text("\(thread.toolName) · \(thread.compactSessionTitle)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text("\(thread.cards.count) turns")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.primary.opacity(0.06))
+                        )
+
+                    Spacer(minLength: 8)
+
+                    Text("#\(thread.lastSeq)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                }
+
+                if let answerPreview = card.answerPreviewText {
+                    HStack(alignment: .top, spacing: 6) {
+                        Text(card.isFailed ? "Error" : "A")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(card.isFailed ? .red : .secondary)
+                            .frame(width: 34, alignment: .leading)
+
+                        Text(answerPreview)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(panelCardBackground)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private static func buildTimelineCards(from events: [AgentBridgeEvent]) -> [TimelineTurnCard] {
+        var drafts: [UUID: TimelineTurnDraft] = [:]
+        var order: [UUID] = []
+
+        for event in events.sorted(by: { $0.seq < $1.seq }) {
+            guard let turnID = event.turnID else { continue }
+
+            if drafts[turnID] == nil {
+                drafts[turnID] = TimelineTurnDraft(turnID: turnID, startedAt: event.createdAt)
+                order.append(turnID)
+            }
+
+            switch event.kind {
+            case .turnStarted:
+                drafts[turnID]?.startedAt = event.createdAt
+                drafts[turnID]?.question = event.payload["text"].nilIfBlank
+                    ?? event.payload["textPreview"].nilIfBlank
+                    ?? event.message.nilIfBlank
+                    ?? "Request created"
+            case .userMessage:
+                let message = event.message.nilIfBlank ?? "Message appended"
+                if let existing = drafts[turnID]?.question.nilIfBlank {
+                    drafts[turnID]?.question = existing + "\n\n" + message
+                } else {
+                    drafts[turnID]?.question = message
+                }
+            case .routed:
+                let toolName = event.payload["tool"]
+                    .flatMap(AIToolType.init(rawValue:))?
+                    .compactDisplayName ?? event.payload["tool"] ?? "Agent"
+                let sessionTitle = event.payload["sessionTitle"].nilIfBlank
+                    ?? event.payload["session"].nilIfBlank
+                    ?? AgentSession.defaultTitle
+
+                drafts[turnID]?.toolName = "\(toolName) CLI"
+                drafts[turnID]?.sessionTitle = sessionTitle
+                drafts[turnID]?.sessionKey = timelineSessionKey(from: event, turnID: turnID)
+            case .turnCompleted:
+                drafts[turnID]?.answer = timelineOutputText(for: event)
+                drafts[turnID]?.completedAt = event.createdAt
+                drafts[turnID]?.isFailed = false
+            case .turnFailed:
+                drafts[turnID]?.answer = timelineOutputText(for: event) ?? "Agent failed"
+                drafts[turnID]?.completedAt = event.createdAt
+                drafts[turnID]?.isFailed = true
+            default:
+                break
+            }
+
+            let previousSeq = drafts[turnID]?.lastSeq ?? event.seq
+            drafts[turnID]?.lastSeq = max(previousSeq, event.seq)
+            drafts[turnID]?.updatedAt = event.createdAt
+        }
+
+        return order
+            .compactMap { drafts[$0]?.card }
+            .filter { !$0.question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .sorted {
+                if $0.updatedAt == $1.updatedAt {
+                    return $0.lastSeq > $1.lastSeq
+                }
+                return $0.updatedAt > $1.updatedAt
+            }
+    }
+
+    private static func buildTimelineSessionThreads(from cards: [TimelineTurnCard]) -> [TimelineSessionThread] {
+        let groupedCards = Dictionary(grouping: cards, by: \.sessionKey)
+
+        return groupedCards.values
+            .compactMap { cards -> TimelineSessionThread? in
+                let sortedCards = cards.sorted {
+                    if $0.updatedAt == $1.updatedAt {
+                        return $0.lastSeq > $1.lastSeq
+                    }
+                    return $0.updatedAt > $1.updatedAt
+                }
+
+                guard let latest = sortedCards.first else { return nil }
+                return TimelineSessionThread(
+                    sessionKey: latest.sessionKey,
+                    toolName: latest.toolName,
+                    sessionTitle: latest.sessionTitle,
+                    cards: sortedCards
+                )
+            }
+            .sorted {
+                if $0.updatedAt == $1.updatedAt {
+                    return $0.lastSeq > $1.lastSeq
+                }
+                return $0.updatedAt > $1.updatedAt
+            }
+    }
+
+    private static func timelineSessionKey(from event: AgentBridgeEvent, turnID: UUID) -> String {
+        let tool = event.payload["tool"].nilIfBlank ?? "agent"
+        let session = event.payload["session"].nilIfBlank
+        if let session, session != "new" {
+            return "\(tool)|\(session)"
+        }
+
+        if let title = event.payload["sessionTitle"].nilIfBlank,
+           title != AgentSession.defaultTitle {
+            return "\(tool)|title:\(title)"
+        }
+
+        if let projectPath = event.payload["projectPath"].nilIfBlank {
+            return "\(tool)|project:\(projectPath)"
+        }
+
+        return "\(tool)|turn:\(turnID.uuidString)"
+    }
+
+    private static func timelineOutputText(for event: AgentBridgeEvent) -> String? {
+        let message = event.message.nilIfBlank
+        let isGenericMessage = message == "Turn completed"
+            || message == "Agent completed"
+            || message == "Agent failed"
+            || message == "Agent \u{5df2}\u{5b8c}\u{6210}"
+            || message == "Agent \u{5b8c}\u{6210}"
+
+        if let message, !isGenericMessage {
+            return message
+        }
+
+        return event.payload["outputPreview"].nilIfBlank
+    }
+
     @ViewBuilder
     private var editSection: some View {
         if isEditingRequest {
             VStack(alignment: .leading, spacing: 10) {
-                sectionTitle("编辑后发送")
+                sectionTitle("Edit and Send")
 
                 VStack(alignment: .leading, spacing: 12) {
                     TextEditor(text: $draftText)
@@ -559,7 +814,7 @@ private struct KaraMenuPanel: View {
                         Button {
                             isEditingRequest = false
                         } label: {
-                            Text("取消")
+                            Text("Cancel")
                                 .frame(maxWidth: .infinity)
                         }
                         .controlSize(.large)
@@ -567,7 +822,7 @@ private struct KaraMenuPanel: View {
                         Button {
                             Task { await sendEditedRequest() }
                         } label: {
-                            Label("发送", systemImage: "paperplane")
+                            Label("Send", systemImage: "paperplane")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -586,7 +841,7 @@ private struct KaraMenuPanel: View {
             Button {
                 showingSettings = true
             } label: {
-                Label("设置", systemImage: "gearshape")
+                Label("Settings", systemImage: "gearshape")
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -594,7 +849,7 @@ private struct KaraMenuPanel: View {
             Text("|")
                 .foregroundStyle(.tertiary)
 
-            Button("查看日志") {
+            Button("View Logs") {
                 openLogs()
             }
             .buttonStyle(.plain)
@@ -602,7 +857,7 @@ private struct KaraMenuPanel: View {
 
             Spacer()
 
-            Button("退出 Kara") {
+            Button("Quit Kara") {
                 NSApplication.shared.terminate(nil)
             }
             .buttonStyle(.plain)
@@ -630,15 +885,15 @@ private struct KaraMenuPanel: View {
     private var bridgeStateText: String {
         switch appModel.aiService.bridgeService.state {
         case .initializing:
-            return "Bridge 初始化中"
+            return "Bridge initializing"
         case .waiting:
-            return "Bridge 已连接"
+            return "Bridge connected"
         case .running:
-            return "Agent 正在执行"
+            return "Agent running"
         case .draining:
-            return "正在停止当前请求"
+            return "Stopping current request"
         case .done:
-            return "Bridge 已断开"
+            return "Bridge disconnected"
         }
     }
 
@@ -653,7 +908,7 @@ private struct KaraMenuPanel: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
         } else {
-            Text("等待首次路由")
+            Text("Waiting for first route")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
         }
@@ -704,7 +959,7 @@ private struct KaraMenuPanel: View {
         if !liveText.isEmpty {
             return liveText
         }
-        return displayedRequest?.text ?? "按住 Option 说话后会显示转写文本"
+        return displayedRequest?.text ?? "Hold Option to speak. The transcript will appear here."
     }
 
     private var screenshotURL: URL? {
@@ -712,7 +967,7 @@ private struct KaraMenuPanel: View {
     }
 
     private var screenshotStatusText: String {
-        screenshotURL == nil ? "等待截图" : "已捕获"
+        screenshotURL == nil ? "Waiting for screenshot" : "Captured"
     }
 
     private var screenshotMetadata: String? {
@@ -745,7 +1000,7 @@ private struct KaraMenuPanel: View {
             .first
             .map(String.init) ?? error
         if firstLine.contains("No prompt provided") {
-            return "Codex CLI 没有收到 prompt"
+            return "Codex CLI did not receive a prompt"
         }
         if firstLine.count > 34 {
             return String(firstLine.prefix(34)) + "..."
@@ -755,9 +1010,9 @@ private struct KaraMenuPanel: View {
 
     private func errorDetail(_ error: String) -> String {
         if error.contains("No prompt provided") {
-            return "已改用 stdin 传递文本后可重试"
+            return "Text is now sent through stdin. You can retry."
         }
-        return "语音文本和截图已保留，可重发"
+        return "Transcript and screenshot were retained. You can retry."
     }
 
     private func beginEditingRequest() {
@@ -807,6 +1062,301 @@ private struct KaraMenuPanel: View {
         formatter.dateFormat = "HH:mm:ss"
         return formatter.string(from: date)
     }
+
+    private static func shortTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: date)
+    }
+}
+
+private struct TimelineTurnCard: Identifiable, Equatable {
+    let id: UUID
+    let sessionKey: String
+    let toolName: String
+    let sessionTitle: String
+    let question: String
+    let answer: String?
+    let startedAt: Date
+    let updatedAt: Date
+    let lastSeq: Int
+    let isFailed: Bool
+    let isCompleted: Bool
+
+    var headerTitle: String {
+        if isFailed {
+            return "Request failed"
+        }
+        if isPending {
+            return "Waiting for response"
+        }
+        return "Q&A Record"
+    }
+
+    var answerText: String {
+        answer.nilIfBlank ?? (isPending ? "Waiting for Agent response" : "No response captured")
+    }
+
+    var answerPreviewText: String? {
+        if isPending {
+            return "Waiting for Agent response"
+        }
+        return answer.nilIfBlank
+    }
+
+    var statusLabel: String {
+        if isFailed {
+            return "Failed"
+        }
+        return isPending ? "Running" : "Done"
+    }
+
+    var compactSessionTitle: String {
+        let value = sessionTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.count > 18 else { return value }
+        return String(value.prefix(18)) + "..."
+    }
+
+    var isPending: Bool {
+        !isFailed && !isCompleted
+    }
+
+    var statusIcon: String {
+        if isFailed {
+            return "xmark"
+        }
+        return isPending ? "clock" : "checkmark"
+    }
+
+    var statusTint: Color {
+        if isFailed {
+            return .red
+        }
+        return isPending ? .orange : .green
+    }
+}
+
+private struct TimelineTurnDraft {
+    let turnID: UUID
+    var sessionKey: String
+    var toolName = "Agent"
+    var sessionTitle = AgentSession.defaultTitle
+    var question = ""
+    var answer: String?
+    var startedAt: Date
+    var updatedAt: Date
+    var completedAt: Date?
+    var lastSeq = 0
+    var isFailed = false
+
+    init(turnID: UUID, startedAt: Date) {
+        self.turnID = turnID
+        self.sessionKey = "turn:\(turnID.uuidString)"
+        self.startedAt = startedAt
+        self.updatedAt = startedAt
+    }
+
+    var card: TimelineTurnCard {
+        TimelineTurnCard(
+            id: turnID,
+            sessionKey: sessionKey,
+            toolName: toolName,
+            sessionTitle: sessionTitle,
+            question: question,
+            answer: answer,
+            startedAt: startedAt,
+            updatedAt: completedAt ?? updatedAt,
+            lastSeq: lastSeq,
+            isFailed: isFailed,
+            isCompleted: completedAt != nil && !isFailed
+        )
+    }
+}
+
+private struct TimelineSessionThread: Identifiable, Equatable {
+    let sessionKey: String
+    let toolName: String
+    let sessionTitle: String
+    let cards: [TimelineTurnCard]
+
+    var id: String { sessionKey }
+
+    var latestCard: TimelineTurnCard {
+        cards.first ?? TimelineTurnCard(
+            id: UUID(),
+            sessionKey: sessionKey,
+            toolName: toolName,
+            sessionTitle: sessionTitle,
+            question: "No request captured",
+            answer: nil,
+            startedAt: Date(),
+            updatedAt: Date(),
+            lastSeq: 0,
+            isFailed: false,
+            isCompleted: false
+        )
+    }
+
+    var updatedAt: Date {
+        latestCard.updatedAt
+    }
+
+    var lastSeq: Int {
+        cards.map(\.lastSeq).max() ?? latestCard.lastSeq
+    }
+
+    var compactSessionTitle: String {
+        let value = sessionTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.count > 18 else { return value }
+        return String(value.prefix(18)) + "..."
+    }
+}
+
+private struct TimelineThreadSheet: View {
+    let thread: TimelineSessionThread
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+
+            Divider()
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(thread.cards) { card in
+                        TimelineQARecordCard(
+                            card: card,
+                            isHighlighted: card.id == thread.latestCard.id
+                        )
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            }
+        }
+        .frame(width: 500, height: 430)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "text.bubble")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.blue)
+                .frame(width: 22, height: 22)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Session History")
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+
+                Text("\(thread.toolName) · \(thread.sessionTitle) · \(thread.cards.count) turns")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 26, height: 26)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+    }
+}
+
+private struct TimelineQARecordCard: View {
+    let card: TimelineTurnCard
+    let isHighlighted: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(Self.shortTime(card.startedAt))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Text(card.statusLabel)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(card.statusTint)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(card.statusTint.opacity(0.12))
+                    )
+
+                Spacer()
+
+                Text("#\(card.lastSeq)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.tertiary)
+            }
+
+            qaBlock(label: "Q", text: card.question, tint: .blue)
+            qaBlock(label: card.isFailed ? "Failed" : "A", text: card.answerText, tint: card.isFailed ? .red : .green)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isHighlighted ? Color.accentColor.opacity(0.10) : Color(nsColor: .controlBackgroundColor).opacity(0.86))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(isHighlighted ? Color.accentColor.opacity(0.30) : Color.primary.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+
+    private func qaBlock(label: String, text: String, tint: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 30, alignment: .leading)
+
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary)
+                .lineLimit(label == "Q" ? 3 : nil)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private static func shortTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: date)
+    }
+}
+
+private extension Optional where Wrapped == String {
+    var nilIfBlank: String? {
+        guard let value = self?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else {
+            return nil
+        }
+        return value
+    }
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        let value = trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
 }
 
 private struct CircleIcon: View {
@@ -843,7 +1393,7 @@ private struct ScreenshotPreview: View {
                 VStack(spacing: 6) {
                     Image(systemName: "display")
                         .font(.system(size: 22))
-                    Text("暂无预览")
+                    Text("No Preview")
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)
@@ -887,7 +1437,7 @@ final class KaraAppModel {
 
     var menuBarSessionLabel: String {
         if isRecording {
-            return "录音中"
+            return "Recording"
         }
 
         if let statusLabel = aiService.deliveryState.menuLabel {
@@ -896,15 +1446,15 @@ final class KaraAppModel {
 
         switch aiService.bridgeService.state {
         case .initializing:
-            return "启动中"
+            return "Starting"
         case .waiting:
-            return aiService.enabledTools.isEmpty ? "未启用" : "就绪"
+            return aiService.enabledTools.isEmpty ? "Disabled" : "Ready"
         case .running:
-            return "执行中"
+            return "Running"
         case .draining:
-            return "停止中"
+            return "Stopping"
         case .done:
-            return "已停止"
+            return "Stopped"
         }
     }
 
@@ -991,7 +1541,7 @@ final class KaraAppModel {
             let text = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
             let screenshotURL = await currentScreenshotTask?.value
             guard let screenshotURL else {
-                aiService.markFailed("需要授权屏幕截图后再发送")
+                aiService.markFailed("Screen capture permission is required before sending")
                 PermissionCoordinator.openScreenCaptureSettings()
                 currentScreenshotTask = nil
                 return
@@ -1001,7 +1551,7 @@ final class KaraAppModel {
                 await aiService.deliverText(text, screenshotURL: screenshotURL)
                 imService.broadcastMessage(text)
             } else {
-                aiService.markFailed("没有识别到语音文本")
+                aiService.markFailed("No speech text was recognized")
             }
             resetTranscriptState()
         }

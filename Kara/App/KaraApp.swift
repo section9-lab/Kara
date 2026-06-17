@@ -3,6 +3,7 @@ import Observation
 import AppKit
 import ImageIO
 import ScreenCaptureKit
+import Speech
 import UniformTypeIdentifiers
 
 @MainActor
@@ -76,7 +77,7 @@ private final class MenuBarStatusItemController: NSObject {
         button.action = #selector(togglePopover)
 
         popover.behavior = .transient
-        popover.contentSize = NSSize(width: 380, height: 560)
+        popover.contentSize = NSSize(width: 520, height: 700)
         popover.contentViewController = NSHostingController(
             rootView: KaraMenuPanel(appModel: appModel)
         )
@@ -278,10 +279,63 @@ private struct AgentIconView: View {
 
 private struct KaraMenuPanel: View {
     @Bindable var appModel: KaraAppModel
+    @State private var showingSettings = false
+    @State private var isEditingRequest = false
+    @State private var draftText = ""
 
     var body: some View {
+        Group {
+            if showingSettings {
+                settingsPanel
+            } else {
+                runtimePanel
+            }
+        }
+        .frame(width: 520, height: 700)
+        .background(.regularMaterial)
+    }
+
+    private var runtimePanel: some View {
         VStack(spacing: 0) {
-            panelHeader
+            runtimeHeader
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    retainedInputSection
+                    errorSection
+                    permissionSection
+                    actionGrid
+                    editSection
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+            }
+
+            Divider()
+
+            footer
+        }
+    }
+
+    private var settingsPanel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    showingSettings = false
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .buttonStyle(.borderless)
+
+                Text("设置")
+                    .font(.headline)
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
 
             Divider()
 
@@ -290,60 +344,533 @@ private struct KaraMenuPanel: View {
                 imService: appModel.imService,
                 taskService: appModel.taskService
             )
-
-            Divider()
-
-            HStack {
-                Text("按住 Option 说话，松开停止")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("退出 Kara") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
         }
     }
 
-    private var panelHeader: some View {
-        HStack(spacing: 10) {
-            AgentIconView(tool: appModel.menuBarTool, size: 28, framed: true)
+    private var runtimeHeader: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(headerTint.opacity(0.16))
+                Image(systemName: headerIcon)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(headerTint)
+            }
+            .frame(width: 48, height: 48)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(appModel.menuBarTool?.compactDisplayName ?? "未选择 Agent")
-                    .font(.callout.weight(.semibold))
-
-                if appModel.isRecording {
-                    Text("正在收音，松开发送")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                } else {
-                    Text(appModel.aiService.statusDetailText)
-                        .font(.caption)
-                        .foregroundStyle(statusDetailColor)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(headerTitle)
+                    .font(.system(size: 22, weight: .semibold))
+                Text(headerSubtitle)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            Image(systemName: appModel.isRecording ? "record.circle.fill" : "mic")
-                .foregroundStyle(appModel.isRecording ? .red : .secondary)
-                .symbolRenderingMode(.hierarchical)
-                .font(.title3)
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18, weight: .medium))
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
         }
-        .padding(14)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
     }
 
-    private var statusDetailColor: Color {
+    private var retainedInputSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("保留的输入")
+
+            VStack(spacing: 0) {
+                transcriptRow
+                Divider()
+                    .padding(.leading, 70)
+                screenshotRow
+            }
+            .background(panelCardBackground)
+        }
+    }
+
+    private var transcriptRow: some View {
+        HStack(alignment: .top, spacing: 14) {
+            CircleIcon(systemName: "bubble.left", tint: .blue)
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("转写文本")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Text(displayTranscript)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(displayedRequest == nil && !appModel.isRecording ? .secondary : .primary)
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(16)
+    }
+
+    private var screenshotRow: some View {
+        HStack(alignment: .top, spacing: 14) {
+            CircleIcon(systemName: "photo", tint: .green)
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("截图")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Text(screenshotStatusText)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(screenshotURL == nil ? Color.secondary : Color.green)
+
+                if let metadata = screenshotMetadata {
+                    Text(metadata)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 10)
+
+            ScreenshotPreview(url: screenshotURL)
+                .frame(width: 190, height: 118)
+        }
+        .padding(16)
+    }
+
+    @ViewBuilder
+    private var errorSection: some View {
+        if let errorText {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionTitle("错误原因")
+
+                HStack(spacing: 14) {
+                    CircleIcon(systemName: "xmark", tint: .red)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(errorSummary(errorText))
+                            .font(.system(size: 17, weight: .semibold))
+                            .lineLimit(2)
+                        Text(errorDetail(errorText))
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
+                .background(panelCardBackground)
+            }
+        }
+    }
+
+    private var permissionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("权限状态")
+
+            VStack(spacing: 0) {
+                PermissionStatusRow(
+                    icon: "mic",
+                    title: "麦克风",
+                    isGranted: PermissionCoordinator.microphoneStatus == .granted
+                )
+                Divider()
+                    .padding(.leading, 52)
+                PermissionStatusRow(
+                    icon: "waveform",
+                    title: "语音识别",
+                    isGranted: SFSpeechRecognizer.authorizationStatus() == .authorized
+                )
+                Divider()
+                    .padding(.leading, 52)
+                PermissionStatusRow(
+                    icon: "display",
+                    title: "屏幕录制",
+                    isGranted: PermissionCoordinator.hasScreenCaptureAccess()
+                )
+            }
+            .background(panelCardBackground)
+        }
+    }
+
+    private var actionGrid: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Button {
+                    Task { await appModel.aiService.retryLastRequest() }
+                } label: {
+                    Label("重发", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(displayedRequest == nil)
+
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label("换 Agent 发送", systemImage: "arrow.left.arrow.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    beginEditingRequest()
+                } label: {
+                    Label(isEditingRequest ? "收起编辑" : "编辑后发送", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .disabled(displayedRequest == nil)
+
+                Button {
+                    copyError()
+                } label: {
+                    Label("复制错误", systemImage: "doc.on.doc")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .disabled(errorText == nil)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var editSection: some View {
+        if isEditingRequest {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionTitle("编辑后发送")
+
+                VStack(alignment: .leading, spacing: 12) {
+                    TextEditor(text: $draftText)
+                        .font(.system(size: 15))
+                        .frame(height: 110)
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color(nsColor: .textBackgroundColor).opacity(0.82))
+                        )
+
+                    HStack(spacing: 10) {
+                        Button {
+                            isEditingRequest = false
+                        } label: {
+                            Text("取消")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .controlSize(.large)
+
+                        Button {
+                            Task { await sendEditedRequest() }
+                        } label: {
+                            Label("发送", systemImage: "paperplane")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+                .padding(16)
+                .background(panelCardBackground)
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 18) {
+            Button("查看日志") {
+                openLogs()
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.blue)
+
+            Text("|")
+                .foregroundStyle(.tertiary)
+
+            Button("打开设置") {
+                showingSettings = true
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button("退出 Kara") {
+                NSApplication.shared.terminate(nil)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+        }
+        .font(.system(size: 14))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 16, weight: .semibold))
+    }
+
+    private var panelCardBackground: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.82))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.primary.opacity(0.09), lineWidth: 1)
+            )
+    }
+
+    private var headerTitle: String {
+        if case .failed = appModel.aiService.deliveryState {
+            return "需要处理"
+        }
+        if appModel.isRecording {
+            return "正在听"
+        }
+        return appModel.menuBarTool?.compactDisplayName ?? "Kara"
+    }
+
+    private var headerSubtitle: String {
+        if case .failed = appModel.aiService.deliveryState {
+            return "请求未发送成功"
+        }
+        if appModel.isRecording {
+            return "松开 Option 后发送"
+        }
+        return "语音会发送给当前 Agent"
+    }
+
+    private var headerIcon: String {
+        if case .failed = appModel.aiService.deliveryState {
+            return "exclamationmark"
+        }
+        return appModel.isRecording ? "mic.fill" : "waveform"
+    }
+
+    private var headerTint: Color {
         if case .failed = appModel.aiService.deliveryState {
             return .red
         }
-        return .secondary
+        return appModel.isRecording ? .red : .blue
+    }
+
+    private var activeRequest: AgentDeliveryRequest? {
+        switch appModel.aiService.deliveryState {
+        case .sending(let request), .delivered(let request), .running(let request), .completed(let request):
+            return request
+        default:
+            return nil
+        }
+    }
+
+    private var displayedRequest: AgentDeliveryRequest? {
+        appModel.aiService.lastFailedRequest ?? activeRequest ?? appModel.aiService.lastRequest
+    }
+
+    private var displayTranscript: String {
+        let liveText = appModel.transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !liveText.isEmpty {
+            return liveText
+        }
+        return displayedRequest?.text ?? "按住 Option 说话后会显示转写文本"
+    }
+
+    private var screenshotURL: URL? {
+        displayedRequest?.screenshotURL
+    }
+
+    private var screenshotStatusText: String {
+        screenshotURL == nil ? "等待截图" : "已捕获"
+    }
+
+    private var screenshotMetadata: String? {
+        guard let url = screenshotURL else { return nil }
+        let size = Self.imagePixelSize(url: url)
+        let time = Self.fileModificationTime(url: url)
+
+        switch (size, time) {
+        case (.some(let size), .some(let time)):
+            return "\(Int(size.width)) x \(Int(size.height)) · \(time)"
+        case (.some(let size), .none):
+            return "\(Int(size.width)) x \(Int(size.height))"
+        case (.none, .some(let time)):
+            return time
+        case (.none, .none):
+            return nil
+        }
+    }
+
+    private var errorText: String? {
+        if case .failed(let message) = appModel.aiService.deliveryState {
+            return message
+        }
+        return appModel.aiService.lastFailedRequest == nil ? nil : appModel.aiService.lastError
+    }
+
+    private func errorSummary(_ error: String) -> String {
+        let firstLine = error
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .first
+            .map(String.init) ?? error
+        if firstLine.contains("No prompt provided") {
+            return "Codex CLI 没有收到 prompt"
+        }
+        if firstLine.count > 34 {
+            return String(firstLine.prefix(34)) + "..."
+        }
+        return firstLine
+    }
+
+    private func errorDetail(_ error: String) -> String {
+        if error.contains("No prompt provided") {
+            return "已改用 stdin 传递文本后可重试"
+        }
+        return "语音文本和截图已保留，可重发"
+    }
+
+    private func beginEditingRequest() {
+        if isEditingRequest {
+            isEditingRequest = false
+            return
+        }
+        draftText = displayedRequest?.text ?? displayTranscript
+        isEditingRequest = true
+    }
+
+    private func sendEditedRequest() async {
+        let text = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        isEditingRequest = false
+        await appModel.aiService.deliverText(text, screenshotURL: screenshotURL)
+    }
+
+    private func copyError() {
+        guard let errorText else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(errorText, forType: .string)
+    }
+
+    private func openLogs() {
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/Kara", isDirectory: true)
+        NSWorkspace.shared.open(url)
+    }
+
+    private static func imagePixelSize(url: URL) -> CGSize? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
+              let height = properties[kCGImagePropertyPixelHeight] as? NSNumber
+        else {
+            return nil
+        }
+        return CGSize(width: width.doubleValue, height: height.doubleValue)
+    }
+
+    private static func fileModificationTime(url: URL) -> String? {
+        let values = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+        guard let date = values?.contentModificationDate else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: date)
+    }
+}
+
+private struct CircleIcon: View {
+    let systemName: String
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(tint.opacity(0.14))
+            Image(systemName: systemName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(tint)
+        }
+        .frame(width: 42, height: 42)
+    }
+}
+
+private struct ScreenshotPreview: View {
+    let url: URL?
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 190, height: 118)
+                    .clipped()
+            } else {
+                VStack(spacing: 6) {
+                    Image(systemName: "display")
+                        .font(.system(size: 22))
+                    Text("暂无预览")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+        )
+    }
+
+    private var image: NSImage? {
+        guard let url else { return nil }
+        return NSImage(contentsOf: url)
+    }
+}
+
+private struct PermissionStatusRow: View {
+    let icon: String
+    let title: String
+    let isGranted: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.primary.opacity(0.06))
+                .frame(width: 30, height: 30)
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                )
+
+            Text(title)
+                .font(.system(size: 15, weight: .medium))
+
+            Spacer()
+
+            Text(isGranted ? "已授权" : "未授权")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isGranted ? .green : .orange)
+
+            Image(systemName: isGranted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(isGranted ? .green : .orange)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 

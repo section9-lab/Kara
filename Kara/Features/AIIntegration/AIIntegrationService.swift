@@ -146,6 +146,8 @@ final class AIIntegrationService {
     var loadingRecentSessionTools: Set<AIToolType> = []
     var lastResponse: String?
     var lastError: String?
+    var lastRequest: AgentDeliveryRequest?
+    var lastFailedRequest: AgentDeliveryRequest?
 
     private let defaultsKey = "Kara.selectedAITool"
     private let sessionDefaultsKey = "Kara.selectedAgentSession"
@@ -275,6 +277,15 @@ final class AIIntegrationService {
         _ = fail(message)
     }
 
+    @discardableResult
+    func retryLastRequest() async -> AgentDeliveryResult {
+        guard let request = lastFailedRequest ?? lastRequest else {
+            return fail("没有可重发的请求")
+        }
+
+        return await deliverText(request.text, screenshotURL: request.screenshotURL)
+    }
+
     /// Send the given text to the currently selected AI tool.
     func sendText(_ text: String) {
         Task {
@@ -328,6 +339,7 @@ final class AIIntegrationService {
 
         let target = AgentTarget(tool: tool, endpoint: endpoint, session: selectedSession)
         let request = AgentDeliveryRequest(text: trimmedText, screenshotURL: screenshotURL, target: target)
+        lastRequest = request
 
         deliveryState = .sending(request)
         deliveryState = .running(request)
@@ -337,12 +349,16 @@ final class AIIntegrationService {
 
         if result.exitCode == 0 {
             lastResponse = result.output
+            lastFailedRequest = nil
             deliveryState = .completed(request)
             scheduleStateReset()
             return AgentDeliveryResult(request: request, state: deliveryState)
         }
 
-        return fail(result.output.isEmpty ? "CLI 执行失败，退出码 \(result.exitCode)" : result.output)
+        return fail(
+            result.output.isEmpty ? "CLI 执行失败，退出码 \(result.exitCode)" : result.output,
+            request: request
+        )
     }
 
     private func endpoint(for tool: AIToolType) -> AgentEndpoint? {
@@ -592,11 +608,15 @@ final class AIIntegrationService {
         arguments += ["--add-dir", path]
     }
 
-    private func fail(_ message: String) -> AgentDeliveryResult {
+    private func fail(_ message: String, request: AgentDeliveryRequest? = nil) -> AgentDeliveryResult {
         lastError = message
+        if let request {
+            lastFailedRequest = request
+            lastRequest = request
+        }
         deliveryState = .failed(message)
         scheduleStateReset()
-        return AgentDeliveryResult(request: nil, state: deliveryState)
+        return AgentDeliveryResult(request: request, state: deliveryState)
     }
 
     private func scheduleStateReset() {

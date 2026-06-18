@@ -4,6 +4,18 @@ Kara is a native macOS menu bar assistant for sending voice commands, with scree
 
 Hold the global hotkey, speak what you want, and Kara transcribes your speech, captures the current screen, then routes both through its Agent Bridge to a local agent such as Codex CLI, Claude CLI, or Hermes CLI.
 
+## Screenshots
+
+Kara stays visible as a compact menu bar status item:
+
+![Kara menu bar status showing the Ready state](docs/images/kara-menubar.png)
+
+The request panel keeps the retained transcript, screenshot context, bridge state, and recent bridge events in one place:
+
+| Request context | Agent Bridge |
+| --- | --- |
+| <img src="docs/images/kara-request-context.png" alt="Kara request panel with retained transcript and screenshot preview" width="380"> | <img src="docs/images/kara-bridge-timeline.png" alt="Kara Agent Bridge panel with bridge status and event timeline" width="380"> |
+
 ## What Kara Does
 
 - Runs quietly in the macOS menu bar

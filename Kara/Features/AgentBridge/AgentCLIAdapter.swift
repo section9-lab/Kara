@@ -27,6 +27,7 @@ enum AgentCLIAdapter {
             .appendingPathComponent("kara-codex-\(request.id.uuidString).txt")
         let shouldCaptureCodexLastMessage = request.target.tool.baseTool == .codexCLI
         let shouldSendPromptViaStdin = request.target.tool.baseTool == .codexCLI
+            || request.target.tool.baseTool == .claudeCLI
 
         return await Task.detached(priority: .userInitiated) {
             let process = Process()
@@ -154,14 +155,7 @@ enum AgentCLIAdapter {
             }
             return ["exec", "--skip-git-repo-check", "--sandbox", "read-only"]
         case .claudeCLI:
-            var arguments = ["-p"]
-            if session.sourceTool?.baseTool == .claudeCLI,
-               let externalID = session.externalID,
-               !externalID.isEmpty,
-               session.projectPath != nil {
-                arguments += ["--resume", externalID]
-            }
-            return arguments
+            return ["-p"]
         case .hermesCLI:
             var arguments = [
                 "chat",

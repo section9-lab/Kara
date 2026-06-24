@@ -599,14 +599,7 @@ final class AIIntegrationService {
             }
             return ["exec", "--skip-git-repo-check", "--sandbox", "read-only"]
         case .claudeDesktop, .claudeCLI:
-            var arguments = ["-p"]
-            if selectedSession.sourceTool?.baseTool == .claudeCLI,
-               let externalID = selectedSession.externalID,
-               !externalID.isEmpty,
-               selectedSession.projectPath != nil {
-                arguments += ["--resume", externalID]
-            }
-            return arguments
+            return ["-p"]
         case .hermesDesktop, .hermesCLI:
             var arguments = [
                 "chat",
@@ -634,6 +627,7 @@ final class AIIntegrationService {
             .appendingPathComponent("kara-codex-\(request.id.uuidString).txt")
         let shouldCaptureCodexLastMessage = request.target.tool.baseTool == .codexCLI
         let shouldSendPromptViaStdin = request.target.tool.baseTool == .codexCLI
+            || request.target.tool.baseTool == .claudeCLI
 
         return await Task.detached(priority: .userInitiated) {
             let process = Process()

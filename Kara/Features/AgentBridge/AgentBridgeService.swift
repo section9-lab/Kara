@@ -169,6 +169,7 @@ final class AgentBridgeService {
         if let judgeDecision,
            let route = router.route(
             for: judgeDecision,
+            text: text,
             selectedSession: selectedSession,
             enabledTools: enabledTools
            ) {

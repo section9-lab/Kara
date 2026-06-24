@@ -123,10 +123,12 @@ struct AgentSessionRouter {
 
     func route(
         for decision: AgentRouteJudgeDecision,
+        text: String,
         selectedSession: AgentSession,
         enabledTools: Set<AIToolType>
     ) -> AgentBridgeRoute? {
         guard decision.intent == .send else { return nil }
+        let intent = VoiceRoutingIntent(text: text)
         let availableTools = routableTools(enabledTools: enabledTools)
         guard !availableTools.isEmpty else { return nil }
 
@@ -140,21 +142,24 @@ struct AgentSessionRouter {
         }
 
         let tools = decision.tool.map { [$0] } ?? availableTools
-        if let sessionID = decision.sessionID,
-           let target = targetFromSessionID(sessionID, tools: tools) {
-            return AgentBridgeRoute(target: target, reason: "Temporary Agent judge selected a session")
-        }
+        if intent.allowsSessionTargeting {
+            if let sessionID = decision.sessionID,
+               let target = targetFromSessionID(sessionID, tools: tools) {
+                return AgentBridgeRoute(target: target, reason: "Temporary Agent judge selected a session")
+            }
 
-        if let target = targetFromSessionTitle(decision.sessionTitle, tools: tools) {
-            return AgentBridgeRoute(target: target, reason: "Temporary Agent judge matched a session")
+            if let target = targetFromSessionTitle(decision.sessionTitle, tools: tools) {
+                return AgentBridgeRoute(target: target, reason: "Temporary Agent judge matched a session")
+            }
         }
 
         if let tool = decision.tool, availableTools.contains(tool) {
-            if let lastTarget = lastSuccessfulTarget(),
+            if intent.allowsSessionTargeting,
+               let lastTarget = lastSuccessfulTarget(),
                lastTarget.tool.baseTool == tool {
                 return AgentBridgeRoute(target: lastTarget, reason: "Temporary Agent judge selected \(tool.compactDisplayName) CLI")
             }
-            let session = selectedSession.sourceTool?.baseTool == tool ? selectedSession : newSession(for: tool)
+            let session = intent.allowsSessionTargeting && selectedSession.sourceTool?.baseTool == tool ? selectedSession : newSession(for: tool)
             return makeTarget(tool: tool, session: session)
                 .map { AgentBridgeRoute(target: $0, reason: "Temporary Agent judge selected \(tool.compactDisplayName) CLI") }
         }
@@ -365,7 +370,8 @@ struct AgentSessionRouter {
             return tool.flatMap { makeTarget(tool: $0, session: newSession(for: $0)) }
         }
 
-        if let target = targetFromSessionMatch(text: intent.text, tools: availableTools) {
+        if intent.allowsSessionTargeting,
+           let target = targetFromSessionMatch(text: intent.text, tools: availableTools) {
             return target
         }
 
@@ -592,7 +598,8 @@ struct AgentSessionRouter {
         - If it asks what sessions exist or asks for session history, intent is query_sessions.
         - If it asks who/what current route is, intent is query_route.
         - Otherwise intent is send.
-        - Prefer an exact sessionID from the session list when the transcript names a matching session title.
+        - For normal task requests, choose only a tool and leave sessionID/sessionTitle null.
+        - Prefer an exact sessionID from the session list only when the transcript explicitly asks to switch, resume, continue, or names a specific session/project.
         - Do not perform the user task.
 
         Current route:
@@ -710,7 +717,15 @@ private struct VoiceRoutingIntent {
     }
 
     var hasTaskVerb: Bool {
-        containsAny(["帮我", "看一下", "检查", "修", "生成", "写", "解释", "总结", "分析", "发送", "处理", "fix", "create", "write", "explain", "summarize", "check"])
+        containsAny(["帮我", "看一下", "检查", "查", "查询", "调查", "修", "生成", "写", "解释", "总结", "分析", "发送", "处理", "测试", "截图", "访问", "打开", "支持", "结论", "提交", "发布", "打包", "安装", "fix", "create", "write", "explain", "summarize", "check", "test", "open", "visit", "release"])
+    }
+
+    var allowsSessionTargeting: Bool {
+        wantsNewSession
+            || isSessionHistoryQuery
+            || isRouteStatusQuery
+            || hasStrictSwitchVerb
+            || containsAny(["session", "cesion", "esion", "会话", "项目", "project", "继续", "恢复", "上次", "之前", "刚才", "最近", "历史", "resume"])
     }
 
     private var hasSwitchVerb: Bool {

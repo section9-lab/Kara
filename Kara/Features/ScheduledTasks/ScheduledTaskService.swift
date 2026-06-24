@@ -12,11 +12,11 @@ enum ScheduledTaskCadence: String, CaseIterable, Codable, Identifiable {
     var displayName: String {
         switch self {
         case .daily:
-            return "每天"
+            return "Daily"
         case .weekdays:
-            return "工作日"
+            return "Weekdays"
         case .weeklyMonday:
-            return "每周一"
+            return "Mondays"
         }
     }
 
@@ -41,9 +41,9 @@ struct ScheduledTaskRun: Identifiable, Codable, Hashable {
         var displayName: String {
             switch self {
             case .succeeded:
-                return "成功"
+                return "Succeeded"
             case .failed:
-                return "失败"
+                return "Failed"
             }
         }
     }
@@ -54,6 +54,11 @@ struct ScheduledTaskRun: Identifiable, Codable, Hashable {
     var ranAt: Date
     var status: Status
     var detail: String
+    var prompt: String
+    var response: String?
+    var responsePreview: String?
+    var turnID: UUID?
+    var targetTool: AIToolType?
 
     init(
         id: UUID = UUID(),
@@ -61,7 +66,12 @@ struct ScheduledTaskRun: Identifiable, Codable, Hashable {
         taskName: String,
         ranAt: Date = Date(),
         status: Status,
-        detail: String
+        detail: String,
+        prompt: String = "",
+        response: String? = nil,
+        responsePreview: String? = nil,
+        turnID: UUID? = nil,
+        targetTool: AIToolType? = nil
     ) {
         self.id = id
         self.taskID = taskID
@@ -69,6 +79,99 @@ struct ScheduledTaskRun: Identifiable, Codable, Hashable {
         self.ranAt = ranAt
         self.status = status
         self.detail = detail
+        self.prompt = prompt
+        self.response = response
+        self.responsePreview = responsePreview ?? Self.preview(response)
+        self.turnID = turnID
+        self.targetTool = targetTool
+    }
+
+    var summaryText: String {
+        if let responsePreview,
+           !responsePreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return responsePreview
+        }
+        return displayDetail
+    }
+
+    var displayDetail: String {
+        Self.displayDetail(for: detail)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case taskID
+        case taskName
+        case ranAt
+        case status
+        case detail
+        case prompt
+        case response
+        case responsePreview
+        case turnID
+        case targetTool
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        taskID = try container.decode(UUID.self, forKey: .taskID)
+        taskName = try container.decode(String.self, forKey: .taskName)
+        ranAt = try container.decodeIfPresent(Date.self, forKey: .ranAt) ?? Date()
+        status = try container.decode(Status.self, forKey: .status)
+        detail = try container.decode(String.self, forKey: .detail)
+        prompt = try container.decodeIfPresent(String.self, forKey: .prompt) ?? ""
+        response = try container.decodeIfPresent(String.self, forKey: .response)
+        responsePreview = try container.decodeIfPresent(String.self, forKey: .responsePreview) ?? Self.preview(response)
+        turnID = try container.decodeIfPresent(UUID.self, forKey: .turnID)
+        targetTool = try container.decodeIfPresent(AIToolType.self, forKey: .targetTool)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(taskID, forKey: .taskID)
+        try container.encode(taskName, forKey: .taskName)
+        try container.encode(ranAt, forKey: .ranAt)
+        try container.encode(status, forKey: .status)
+        try container.encode(detail, forKey: .detail)
+        try container.encode(prompt, forKey: .prompt)
+        try container.encodeIfPresent(response, forKey: .response)
+        try container.encodeIfPresent(responsePreview, forKey: .responsePreview)
+        try container.encodeIfPresent(turnID, forKey: .turnID)
+        try container.encodeIfPresent(targetTool, forKey: .targetTool)
+    }
+
+    static func preview(_ text: String?, limit: Int = 160) -> String? {
+        guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        guard trimmed.count > limit else { return trimmed }
+        return String(trimmed.prefix(limit)) + "..."
+    }
+
+    private static func displayDetail(for detail: String) -> String {
+        switch detail {
+        case "手动执行已提交":
+            return "Manual run submitted"
+        case "定时执行已提交":
+            return "Scheduled run submitted"
+        case "手动执行完成":
+            return "Manual run completed"
+        case "定时执行完成":
+            return "Scheduled run completed"
+        case "手动执行失败":
+            return "Manual run failed"
+        case "定时执行失败":
+            return "Scheduled run failed"
+        case "任务没有配置执行目标":
+            return "No execution target configured for this task"
+        case "AI 服务不可用":
+            return "AI service unavailable"
+        case "保持系统唤醒失败":
+            return "Failed to keep the system awake"
+        default:
+            return detail
+        }
     }
 }
 
@@ -180,11 +283,14 @@ final class ScheduledTaskService {
     var runs: [ScheduledTaskRun] = []
     var lastError: String?
     var keepSystemAwake = false
+    var unreadRunCount = 0
+    var focusedRunID: UUID?
 
     private let storageKey = "Kara.scheduledTasks"
     private let runsStorageKey = "Kara.scheduledTaskRuns"
     private let keepAwakeStorageKey = "Kara.scheduledTasks.keepAwake"
     private let exampleSeedStorageKey = "Kara.scheduledTasks.seededExamples.v1"
+    private let responseStorageLimit = 50_000
     private var schedulerTimer: Timer?
     private var powerAssertionID = IOPMAssertionID(0)
     private var runningTaskIDs: Set<UUID> = []
@@ -238,6 +344,33 @@ final class ScheduledTaskService {
         updatePowerAssertion()
     }
 
+    func markRunsSeen() {
+        unreadRunCount = 0
+    }
+
+    func focusRun(id: UUID?) {
+        focusedRunID = id
+        if id != nil {
+            markRunsSeen()
+        }
+    }
+
+    func clearFocusedRun() {
+        focusedRunID = nil
+    }
+
+    func sendTestNotification() {
+        KaraLocalNotificationCenter.post(
+            identifier: "kara.test.\(UUID().uuidString)",
+            title: "Kara Notification Test",
+            subtitle: "System Notification",
+            body: "If you see this notification, Kara's notification permission and delivery path are working.",
+            userInfo: [
+                "kind": "test"
+            ]
+        )
+    }
+
     private func updatePowerAssertion() {
         if keepSystemAwake {
             guard powerAssertionID == 0 else { return }
@@ -250,7 +383,7 @@ final class ScheduledTaskService {
             )
             if result != kIOReturnSuccess {
                 powerAssertionID = 0
-                lastError = "保持系统唤醒失败"
+                lastError = "Failed to keep the system awake"
             }
         } else if powerAssertionID != 0 {
             IOPMAssertionRelease(powerAssertionID)
@@ -313,6 +446,15 @@ final class ScheduledTaskService {
         case scheduled
     }
 
+    private struct ExecutionResult {
+        var status: ScheduledTaskRun.Status
+        var prompt: String
+        var response: String?
+        var turnID: UUID?
+        var targetTool: AIToolType?
+        var errorMessage: String?
+    }
+
     func runNow(id: UUID) {
         executeTask(id: id, trigger: .manual, scheduledRunKey: nil)
     }
@@ -340,21 +482,31 @@ final class ScheduledTaskService {
         }
     }
 
-    private func perform(_ task: ScheduledTask) async -> ScheduledTaskRun.Status {
+    private func perform(_ task: ScheduledTask) async -> ExecutionResult {
         var succeeded = false
+        var response: String?
+        var turnID: UUID?
+        var targetTool: AIToolType?
+        var errorMessage: String?
 
         if let tool = task.targetTool ?? aiService?.preferredTool {
             aiService?.selectedTool = tool
             let result = await aiService?.deliverText(task.prompt)
             if let result {
+                response = result.output
+                turnID = result.turnID
+                targetTool = result.targetTool ?? tool.baseTool
                 switch result.state {
                 case .completed, .delivered:
                     succeeded = true
-                case .failed:
+                case .failed(let message):
                     succeeded = false
+                    errorMessage = message
                 default:
                     succeeded = true
                 }
+            } else {
+                errorMessage = "AI service unavailable"
             }
         }
 
@@ -364,18 +516,32 @@ final class ScheduledTaskService {
         }
 
         if task.targetTool == nil, aiService?.preferredTool == nil, task.targetChannelID == nil {
-            lastError = "任务没有配置执行目标"
-            return .failed
+            lastError = "No execution target configured for this task"
+            return ExecutionResult(
+                status: .failed,
+                prompt: task.prompt,
+                response: nil,
+                turnID: nil,
+                targetTool: nil,
+                errorMessage: lastError
+            )
         }
 
-        return succeeded ? .succeeded : .failed
+        return ExecutionResult(
+            status: succeeded ? .succeeded : .failed,
+            prompt: task.prompt,
+            response: response,
+            turnID: turnID,
+            targetTool: targetTool,
+            errorMessage: errorMessage
+        )
     }
 
     private func finishExecution(
         taskID: UUID,
         taskName: String,
         trigger: ExecutionTrigger,
-        result: ScheduledTaskRun.Status
+        result: ExecutionResult
     ) {
         runningTaskIDs.remove(taskID)
 
@@ -384,21 +550,60 @@ final class ScheduledTaskService {
             saveTasks()
         }
 
-        let triggerText = trigger == .manual ? "手动执行" : "定时执行"
-        let detail = result == .succeeded ? "\(triggerText)已提交" : (lastError ?? "\(triggerText)失败")
+        let triggerText = trigger == .manual ? "Manual run" : "Scheduled run"
+        let detail: String
+        if result.status == .succeeded {
+            detail = "\(triggerText) completed"
+        } else if let errorPreview = ScheduledTaskRun.preview(result.errorMessage, limit: 220) {
+            detail = errorPreview
+        } else if let errorPreview = ScheduledTaskRun.preview(lastError, limit: 220) {
+            detail = errorPreview
+        } else {
+            detail = "\(triggerText) failed"
+        }
+        let response = storedResponse(from: result.response)
+        let run = ScheduledTaskRun(
+            taskID: taskID,
+            taskName: taskName,
+            status: result.status,
+            detail: detail,
+            prompt: result.prompt,
+            response: response,
+            responsePreview: ScheduledTaskRun.preview(response),
+            turnID: result.turnID,
+            targetTool: result.targetTool
+        )
         runs.insert(
-            ScheduledTaskRun(
-                taskID: taskID,
-                taskName: taskName,
-                status: result,
-                detail: detail
-            ),
+            run,
             at: 0
         )
+        unreadRunCount += 1
         if runs.count > 80 {
             runs = Array(runs.prefix(80))
         }
         saveRuns()
+        sendCompletionNotification(for: run)
+    }
+
+    private func storedResponse(from response: String?) -> String? {
+        guard let response,
+              !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard response.count > responseStorageLimit else { return response }
+        return String(response.prefix(responseStorageLimit)) + "\n\n[Output truncated by Kara]"
+    }
+
+    private func sendCompletionNotification(for run: ScheduledTaskRun) {
+        KaraLocalNotificationCenter.post(
+            identifier: "kara.task.\(run.id.uuidString)",
+            title: run.status == .succeeded ? "Task Completed" : "Task Failed",
+            subtitle: run.taskName,
+            body: run.responsePreview ?? run.detail,
+            userInfo: [
+                "kind": "scheduledTask",
+                "taskID": run.taskID.uuidString,
+                "runID": run.id.uuidString
+            ]
+        )
     }
 
     // MARK: - Persistence

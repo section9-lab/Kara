@@ -84,13 +84,104 @@ final class AgentBridgeService {
             "projectPath": context.projectPath ?? ""
         ])
 
-        let routeResult = router.route(
+        let judgeDecision: AgentRouteJudgeDecision?
+        if forcedTarget == nil {
+            await publish(.replay, turnID: turnID, message: "Temporary route judge started", payload: [
+                "handledBy": "route-judge"
+            ])
+            judgeDecision = await router.judgeWithTemporaryAgent(text: text, enabledTools: enabledTools)
+            if let judgeDecision {
+                await publish(.replay, turnID: turnID, message: "Temporary route judge decided \(judgeDecision.intent.rawValue)", payload: [
+                    "intent": judgeDecision.intent.rawValue,
+                    "tool": judgeDecision.tool?.rawValue ?? "",
+                    "sessionID": judgeDecision.sessionID ?? "",
+                    "sessionTitle": judgeDecision.sessionTitle ?? "",
+                    "confidence": "\(judgeDecision.confidence)"
+                ])
+            } else {
+                await publish(.replay, turnID: turnID, message: "Temporary route judge unavailable; using fallback rules", payload: [
+                    "handledBy": "route-judge"
+                ])
+            }
+        } else {
+            judgeDecision = nil
+        }
+
+        if let judgeDecision,
+           let controlResult = router.controlResult(
+            for: judgeDecision,
             text: text,
-            selectedTool: selectedTool,
-            enabledTools: enabledTools,
+            enabledTools: enabledTools
+           ) {
+            if let route = controlResult.route {
+                lastRouteReason = route.reason
+                lastRoute = route
+                await publish(.routed, turnID: turnID, message: route.reason, payload: [
+                    "tool": route.target.tool.rawValue,
+                    "session": route.target.session.externalID ?? "new",
+                    "sessionTitle": route.target.session.title,
+                    "projectPath": route.target.session.projectPath ?? ""
+                ])
+            }
+
+            await publish(.turnCompleted, turnID: turnID, message: controlResult.message, payload: [
+                "outputPreview": preview(controlResult.message, limit: 520),
+                "handledBy": "temporary-route-judge"
+            ])
+            await setState(.waiting, activeTurnID: nil)
+            return AgentBridgeRunResult(
+                turnID: turnID,
+                request: nil,
+                exitCode: 0,
+                output: controlResult.message,
+                route: controlResult.route
+            )
+        }
+
+        if forcedTarget == nil,
+           let controlResult = router.controlCommand(text: text, enabledTools: enabledTools) {
+            if let route = controlResult.route {
+                lastRouteReason = route.reason
+                lastRoute = route
+                await publish(.routed, turnID: turnID, message: route.reason, payload: [
+                    "tool": route.target.tool.rawValue,
+                    "session": route.target.session.externalID ?? "new",
+                    "sessionTitle": route.target.session.title,
+                    "projectPath": route.target.session.projectPath ?? ""
+                ])
+            }
+
+            await publish(.turnCompleted, turnID: turnID, message: controlResult.message, payload: [
+                "outputPreview": preview(controlResult.message, limit: 520),
+                "handledBy": "voice-control"
+            ])
+            await setState(.waiting, activeTurnID: nil)
+            return AgentBridgeRunResult(
+                turnID: turnID,
+                request: nil,
+                exitCode: 0,
+                output: controlResult.message,
+                route: controlResult.route
+            )
+        }
+
+        let routeResult: Result<AgentBridgeRoute, AgentBridgeRouteError>
+        if let judgeDecision,
+           let route = router.route(
+            for: judgeDecision,
             selectedSession: selectedSession,
-            forcedTarget: forcedTarget
-        )
+            enabledTools: enabledTools
+           ) {
+            routeResult = .success(route)
+        } else {
+            routeResult = router.route(
+                text: text,
+                selectedTool: selectedTool,
+                enabledTools: enabledTools,
+                selectedSession: selectedSession,
+                forcedTarget: forcedTarget
+            )
+        }
 
         let route: AgentBridgeRoute
         switch routeResult {

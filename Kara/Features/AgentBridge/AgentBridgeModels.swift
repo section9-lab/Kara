@@ -87,6 +87,11 @@ struct AgentBridgeRoute: Equatable {
     let reason: String
 }
 
+struct AgentBridgeControlResult: Equatable {
+    let message: String
+    let route: AgentBridgeRoute?
+}
+
 struct AgentBridgeRouteError: Error, Equatable {
     let message: String
 }

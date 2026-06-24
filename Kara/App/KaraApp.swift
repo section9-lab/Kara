@@ -4,11 +4,12 @@ import AppKit
 import ImageIO
 import ScreenCaptureKit
 import Speech
+import UserNotifications
 import UniformTypeIdentifiers
 
 @MainActor
 @main
-final class KaraAppDelegate: NSObject, NSApplicationDelegate {
+final class KaraAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let appModel = KaraAppModel()
     private var statusItemController: MenuBarStatusItemController?
     private var keepAlivePanel: NSPanel?
@@ -26,6 +27,7 @@ final class KaraAppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         ProcessInfo.processInfo.disableAutomaticTermination("Kara keeps menu bar voice and IM listeners active")
         installKeepAlivePanel()
+        configureUserNotifications()
 
         let controller = MenuBarStatusItemController(appModel: appModel)
         controller.install()
@@ -34,6 +36,37 @@ final class KaraAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    private func configureUserNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        KaraLocalNotificationCenter.requestAuthorization()
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound]
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let userInfo = response.notification.request.content.userInfo
+        let focusedRunID = (userInfo["runID"] as? String).flatMap(UUID.init(uuidString:))
+        let focusedTurnID = (userInfo["turnID"] as? String).flatMap(UUID.init(uuidString:))
+
+        await MainActor.run { [weak self] in
+            if let focusedRunID {
+                self?.appModel.openTasksPage(focusedRunID: focusedRunID)
+            } else {
+                self?.appModel.openRequestPage(focusedTurnID: focusedTurnID)
+            }
+            self?.statusItemController?.showPopover()
+        }
     }
 
     private func installKeepAlivePanel() {
@@ -94,20 +127,28 @@ private final class MenuBarStatusItemController: NSObject {
 
     @objc
     private func togglePopover() {
-        guard let button = statusItem.button else { return }
-
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            showPopover()
+        }
+    }
+
+    func showPopover() {
+        guard let button = statusItem.button else { return }
+
+        if !popover.isShown {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
+        popover.contentViewController?.view.window?.makeKey()
     }
 
     private func refreshStatusImage() {
         statusItem.button?.image = MenuBarCapsuleImageRenderer.image(
             tool: appModel.menuBarTool,
             label: appModel.menuBarSessionLabel,
-            isRecording: appModel.isRecording
+            isRecording: appModel.isRecording,
+            unreadCount: appModel.taskService.unreadRunCount
         )
     }
 }
@@ -115,7 +156,7 @@ private final class MenuBarStatusItemController: NSObject {
 // MARK: - Menu bar live activity
 
 private enum MenuBarCapsuleImageRenderer {
-    static func image(tool: AIToolType?, label: String, isRecording: Bool) -> NSImage {
+    static func image(tool: AIToolType?, label: String, isRecording: Bool, unreadCount: Int) -> NSImage {
         let size = NSSize(width: 132, height: 24)
         let image = NSImage(size: size)
 
@@ -204,6 +245,38 @@ private enum MenuBarCapsuleImageRenderer {
             attributes: attributes
         )
 
+        if unreadCount > 0 {
+            let badgeText = unreadCount > 9 ? "9+" : "\(unreadCount)"
+            let badgeWidth: CGFloat = badgeText.count > 1 ? 18 : 14
+            let badgeRect = NSRect(x: size.width - badgeWidth - 1, y: size.height - 15, width: badgeWidth, height: 14)
+            NSColor(calibratedRed: 0.92, green: 0.12, blue: 0.16, alpha: 1.0).setFill()
+            NSBezierPath(roundedRect: badgeRect, xRadius: 7, yRadius: 7).fill()
+
+            NSColor.white.setStroke()
+            NSBezierPath(roundedRect: badgeRect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6.5, yRadius: 6.5).stroke()
+
+            let badgeFont = NSFont.systemFont(ofSize: 8.5, weight: .bold)
+            let badgeParagraph = NSMutableParagraphStyle()
+            badgeParagraph.alignment = .center
+            let badgeAttributes: [NSAttributedString.Key: Any] = [
+                .font: badgeFont,
+                .foregroundColor: NSColor.white,
+                .paragraphStyle: badgeParagraph
+            ]
+            let badgeLineHeight = badgeFont.ascender - badgeFont.descender
+            let badgeBaseline = (badgeRect.height - badgeLineHeight) / 2 - badgeFont.descender - 0.5
+            (badgeText as NSString).draw(
+                with: NSRect(
+                    x: badgeRect.minX,
+                    y: badgeRect.minY + badgeBaseline,
+                    width: badgeRect.width,
+                    height: badgeLineHeight
+                ),
+                options: [.usesLineFragmentOrigin],
+                attributes: badgeAttributes
+            )
+        }
+
         image.isTemplate = false
         return image
     }
@@ -280,33 +353,31 @@ private struct AgentIconView: View {
 
 // MARK: - Menu panel
 
-private struct KaraMenuPanel: View {
-    @Bindable var appModel: KaraAppModel
-    @State private var showingSettings = false
-    @State private var isEditingRequest = false
-    @State private var draftText = ""
-    @State private var selectedHomePage: HomePage = .request
-    @State private var selectedTimelineThread: TimelineSessionThread?
+fileprivate enum KaraHomePage: String, CaseIterable, Identifiable, Equatable {
+    case request = "Request"
+    case im = "IM Channels"
+    case tasks = "Tasks"
 
-    private enum HomePage: String, CaseIterable, Identifiable {
-        case request = "Request"
-        case im = "IM Channels"
-        case tasks = "Tasks"
+    var id: String { rawValue }
 
-        var id: String { rawValue }
-
-        var icon: String {
-            switch self {
-            case .request: return "waveform"
-            case .im: return "message"
-            case .tasks: return "clock"
-            }
+    var icon: String {
+        switch self {
+        case .request: return "waveform"
+        case .im: return "message"
+        case .tasks: return "clock"
         }
     }
+}
+
+private struct KaraMenuPanel: View {
+    @Bindable var appModel: KaraAppModel
+    @State private var isEditingRequest = false
+    @State private var draftText = ""
+    @State private var selectedTimelineThread: TimelineSessionThread?
 
     var body: some View {
         Group {
-            if showingSettings {
+            if appModel.isShowingSettings {
                 settingsPanel
             } else {
                 runtimePanel
@@ -314,9 +385,48 @@ private struct KaraMenuPanel: View {
         }
         .frame(width: 520, height: 700)
         .background(.regularMaterial)
+        .onAppear(perform: markVisibleTaskRunsSeen)
+        .onAppear(perform: openFocusedTurnIfNeeded)
+        .onChange(of: appModel.selectedHomePage) { _, _ in
+            markVisibleTaskRunsSeen()
+            openFocusedTurnIfNeeded()
+        }
+        .onChange(of: appModel.focusedTurnID) { _, _ in
+            openFocusedTurnIfNeeded()
+        }
+        .onChange(of: appModel.taskService.runs.count) { _, _ in
+            markVisibleTaskRunsSeen()
+        }
+        .onChange(of: appModel.aiService.bridgeService.recentEvents.count) { _, _ in
+            openFocusedTurnIfNeeded()
+        }
         .sheet(item: $selectedTimelineThread) { thread in
             TimelineThreadSheet(thread: thread)
         }
+    }
+
+    private func markVisibleTaskRunsSeen() {
+        if !appModel.isShowingSettings, appModel.selectedHomePage == .tasks {
+            appModel.taskService.markRunsSeen()
+        }
+    }
+
+    private func openFocusedTurnIfNeeded() {
+        guard !appModel.isShowingSettings,
+              appModel.selectedHomePage == .request,
+              let focusedTurnID = appModel.focusedTurnID
+        else {
+            return
+        }
+
+        guard let thread = timelineSessionThreads.first(where: { thread in
+            thread.cards.contains { $0.id == focusedTurnID }
+        }) else {
+            return
+        }
+
+        selectedTimelineThread = thread
+        appModel.focusedTurnID = nil
     }
 
     private var runtimePanel: some View {
@@ -326,7 +436,7 @@ private struct KaraMenuPanel: View {
             Divider()
 
             ScrollView {
-                switch selectedHomePage {
+                switch appModel.selectedHomePage {
                 case .request:
                     requestPage
                 case .im:
@@ -350,7 +460,7 @@ private struct KaraMenuPanel: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Button {
-                    showingSettings = false
+                    appModel.isShowingSettings = false
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -374,9 +484,12 @@ private struct KaraMenuPanel: View {
 
     private var homePageTabs: some View {
         HStack(spacing: 8) {
-            ForEach(HomePage.allCases) { page in
+            ForEach(KaraHomePage.allCases) { page in
                 Button {
-                    selectedHomePage = page
+                    appModel.selectedHomePage = page
+                    if page == .tasks {
+                        appModel.taskService.markRunsSeen()
+                    }
                 } label: {
                     Label(page.rawValue, systemImage: page.icon)
                         .font(.system(size: 13, weight: .semibold))
@@ -385,9 +498,9 @@ private struct KaraMenuPanel: View {
                         .contentShape(Rectangle())
                         .background(
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(selectedHomePage == page ? Color.accentColor.opacity(0.16) : Color.clear)
+                                .fill(appModel.selectedHomePage == page ? Color.accentColor.opacity(0.16) : Color.clear)
                         )
-                        .foregroundStyle(selectedHomePage == page ? Color.accentColor : .secondary)
+                        .foregroundStyle(appModel.selectedHomePage == page ? Color.accentColor : .secondary)
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
@@ -839,7 +952,7 @@ private struct KaraMenuPanel: View {
     private var footer: some View {
         HStack(spacing: 18) {
             Button {
-                showingSettings = true
+                appModel.isShowingSettings = true
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }
@@ -1029,7 +1142,7 @@ private struct KaraMenuPanel: View {
         guard !text.isEmpty else { return }
 
         isEditingRequest = false
-        await appModel.aiService.deliverText(text, screenshotURL: screenshotURL)
+        await appModel.aiService.deliverText(text, screenshotURL: screenshotURL, notifyOnCompletion: true)
     }
 
     private func copyError() {
@@ -1427,6 +1540,9 @@ final class KaraAppModel {
 
     var isRecording = false
     var transcribedText = ""
+    fileprivate var selectedHomePage: KaraHomePage = .request
+    var isShowingSettings = false
+    var focusedTurnID: UUID?
     private var finalizedTranscript = ""
     private var volatileTranscript = ""
     private var currentScreenshotTask: Task<URL?, Never>?
@@ -1491,6 +1607,22 @@ final class KaraAppModel {
         taskService.startAllTimers()
     }
 
+    func openTasksPage(focusedRunID: UUID? = nil) {
+        isShowingSettings = false
+        selectedHomePage = .tasks
+        if let focusedRunID {
+            taskService.focusRun(id: focusedRunID)
+        } else {
+            taskService.markRunsSeen()
+        }
+    }
+
+    func openRequestPage(focusedTurnID: UUID? = nil) {
+        isShowingSettings = false
+        selectedHomePage = .request
+        self.focusedTurnID = focusedTurnID
+    }
+
     func startRecording() {
         guard !isRecording else { return }
         isRecording = true
@@ -1548,7 +1680,7 @@ final class KaraAppModel {
             }
 
             if !text.isEmpty {
-                await aiService.deliverText(text, screenshotURL: screenshotURL)
+                await aiService.deliverText(text, screenshotURL: screenshotURL, notifyOnCompletion: true)
                 imService.broadcastMessage(text)
             } else {
                 aiService.markFailed("No speech text was recognized")

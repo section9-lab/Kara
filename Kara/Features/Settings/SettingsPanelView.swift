@@ -522,7 +522,7 @@ private struct LegacyAIToolsSection: View {
                     Button {
                         let message = testMessage
                         Task {
-                            await aiService.deliverText(message)
+                            await aiService.deliverText(message, notifyOnCompletion: true)
                         }
                     } label: {
                         Label("Send", systemImage: "paperplane")
@@ -1080,6 +1080,8 @@ private struct IMPlatformCard: View {
             return .secondary
         case .listening:
             return .blue
+        case .reconnecting:
+            return .orange
         case .running:
             return .orange
         case .replied:
@@ -1325,12 +1327,13 @@ struct ScheduledTasksSection: View {
     let imService: IMChannelService
     @State private var showingAddSheet = false
     @State private var editingTask: ScheduledTask?
+    @State private var viewingRun: ScheduledTaskRun?
     @State private var selectedList: ScheduledTaskList = .tasks
     @State private var sortDescending = true
 
     private enum ScheduledTaskList: String, CaseIterable, Identifiable {
-        case tasks = "我的定时任务"
-        case runs = "执行记录"
+        case tasks = "My Tasks"
+        case runs = "Run History"
 
         var id: String { rawValue }
     }
@@ -1355,17 +1358,43 @@ struct ScheduledTasksSection: View {
         .sheet(item: $editingTask) { task in
             TaskEditorSheet(taskService: taskService, aiService: aiService, imService: imService, task: task)
         }
+        .sheet(item: $viewingRun, onDismiss: {
+            taskService.clearFocusedRun()
+        }) { run in
+            ScheduledTaskRunDetailSheet(run: run)
+        }
+        .onAppear(perform: openFocusedRunIfNeeded)
+        .onChange(of: taskService.focusedRunID) { _, _ in
+            openFocusedRunIfNeeded()
+        }
+    }
+
+    private func openFocusedRunIfNeeded() {
+        guard let focusedRunID = taskService.focusedRunID else { return }
+        guard let run = taskService.runs.first(where: { $0.id == focusedRunID }) else {
+            taskService.clearFocusedRun()
+            return
+        }
+
+        selectedList = .runs
+        viewingRun = run
+        taskService.markRunsSeen()
+    }
+
+    private func showRun(_ run: ScheduledTaskRun) {
+        viewingRun = run
+        taskService.markRunsSeen()
     }
 
     private var pageHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("定时任务")
+                    Text("Scheduled Tasks")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.primary)
 
-                    Text("按计划自动执行任务，也可随时手动触发。")
+                    Text("Run prompts automatically on a schedule, or trigger them manually.")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -1388,14 +1417,25 @@ struct ScheduledTasksSection: View {
                 .buttonStyle(.plain)
             }
 
-            Button {
-                aiService.refreshRecentSessions()
-            } label: {
-                Label("刷新最近会话", systemImage: "arrow.clockwise")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                Button {
+                    aiService.refreshRecentSessions()
+                } label: {
+                    Label("Refresh Recent Sessions", systemImage: "arrow.clockwise")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    taskService.sendTestNotification()
+                } label: {
+                    Label("Test Notification", systemImage: "bell.badge")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -1405,14 +1445,14 @@ struct ScheduledTasksSection: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.blue)
 
-            Text("定时任务仅在电脑保持唤醒时运行")
+            Text("Scheduled tasks only run while your Mac is awake")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.blue)
                 .lineLimit(1)
 
             Spacer()
 
-            Toggle("保持唤醒", isOn: Binding(
+            Toggle("Keep Awake", isOn: Binding(
                 get: { taskService.keepSystemAwake },
                 set: { taskService.setKeepSystemAwake($0) }
             ))
@@ -1448,7 +1488,7 @@ struct ScheduledTasksSection: View {
                 Button {
                     sortDescending.toggle()
                 } label: {
-                    Label(sortDescending ? "按创建时间倒序" : "按创建时间正序", systemImage: "line.3.horizontal.decrease")
+                    Label(sortDescending ? "Newest First" : "Oldest First", systemImage: "line.3.horizontal.decrease")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.primary)
                         .labelStyle(.iconOnly)
@@ -1480,7 +1520,7 @@ struct ScheduledTasksSection: View {
                 Image(systemName: "clock.badge.questionmark")
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                Text("暂未配置定时任务")
+                Text("No scheduled tasks yet")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -1511,7 +1551,7 @@ struct ScheduledTasksSection: View {
                 Image(systemName: "list.bullet.clipboard")
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                Text("还没有执行记录")
+                Text("No run history yet")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -1520,7 +1560,12 @@ struct ScheduledTasksSection: View {
         } else {
             VStack(spacing: 8) {
                 ForEach(taskService.runs) { run in
-                    ScheduledTaskRunRow(run: run)
+                    Button {
+                        showRun(run)
+                    } label: {
+                        ScheduledTaskRunRow(run: run)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -1549,13 +1594,13 @@ private struct ScheduledTaskRow: View {
                     Button {
                         taskService.runNow(id: task.id)
                     } label: {
-                        Label("立即执行", systemImage: "play")
+                        Label("Run Now", systemImage: "play")
                     }
 
                     Button {
                         edit()
                     } label: {
-                        Label("编辑任务", systemImage: "square.and.pencil")
+                        Label("Edit Task", systemImage: "square.and.pencil")
                     }
 
                     Divider()
@@ -1563,7 +1608,7 @@ private struct ScheduledTaskRow: View {
                     Button(role: .destructive) {
                         taskService.removeTask(id: task.id)
                     } label: {
-                        Label("删除任务", systemImage: "trash")
+                        Label("Delete Task", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -1646,10 +1691,16 @@ private struct ScheduledTaskRunRow: View {
                 Text(run.taskName)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
-                Text(run.detail)
+                Text(run.displayDetail)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if run.responsePreview != nil {
+                    Text(run.summaryText)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
@@ -1664,6 +1715,205 @@ private struct ScheduledTaskRunRow: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.white.opacity(0.36))
         )
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+private struct ScheduledTaskRunDetailSheet: View {
+    let run: ScheduledTaskRun
+    @Environment(\.dismiss) private var dismiss
+    @State private var copiedLabel: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    metaSection
+                    ScheduledTaskRunTextBlock(
+                        title: "Question",
+                        systemImage: "text.quote",
+                        text: questionText,
+                        emptyText: "No saved prompt snapshot",
+                        tint: .blue
+                    )
+                    ScheduledTaskRunTextBlock(
+                        title: "Answer",
+                        systemImage: answerIcon,
+                        text: answerText,
+                        emptyText: "No response",
+                        tint: run.status == .succeeded ? .green : .orange
+                    )
+                }
+                .padding(18)
+            }
+
+            Divider()
+            footer
+        }
+        .frame(width: 560, height: 620)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Image(systemName: run.status == .succeeded ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(run.status == .succeeded ? .green : .orange)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(run.taskName)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(run.displayDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+    }
+
+    private var metaSection: some View {
+        HStack(spacing: 8) {
+            Label(run.status.displayName, systemImage: run.status == .succeeded ? "checkmark" : "xmark")
+                .foregroundStyle(run.status == .succeeded ? .green : .orange)
+
+            if let targetTool = run.targetTool {
+                Label(targetTool.compactDisplayName, systemImage: targetTool.iconSystemName)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let turnID = run.turnID {
+                Label(String(turnID.uuidString.prefix(8)), systemImage: "number")
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(run.ranAt.formatted(.dateTime.month().day().hour().minute()))
+                .foregroundStyle(.tertiary)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.045))
+        )
+    }
+
+    private var footer: some View {
+        HStack(spacing: 10) {
+            if let copiedLabel {
+                Text("\(copiedLabel) copied")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                copy(answerText, label: "Answer")
+            } label: {
+                Label("Copy Answer", systemImage: "doc.on.doc")
+            }
+
+            Button {
+                copy(fullQAText, label: "Q&A")
+            } label: {
+                Label("Copy Full Q&A", systemImage: "square.on.square")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .controlSize(.regular)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+    }
+
+    private var questionText: String {
+        let trimmed = run.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "" : trimmed
+    }
+
+    private var answerText: String {
+        if let response = run.response?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !response.isEmpty {
+            return response
+        }
+
+        return run.displayDetail
+    }
+
+    private var answerIcon: String {
+        run.status == .succeeded ? "text.bubble" : "exclamationmark.bubble"
+    }
+
+    private var fullQAText: String {
+        """
+        Q:
+        \(questionText)
+
+        A:
+        \(answerText)
+        """
+    }
+
+    private func copy(_ text: String, label: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        copiedLabel = label
+    }
+}
+
+private struct ScheduledTaskRunTextBlock: View {
+    let title: String
+    let systemImage: String
+    let text: String
+    let emptyText: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+
+            Text(displayText)
+                .font(.system(size: 12.5))
+                .foregroundStyle(text.isEmpty ? .secondary : .primary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(nsColor: .textBackgroundColor).opacity(0.72))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+                )
+        }
+    }
+
+    private var displayText: String {
+        text.isEmpty ? emptyText : text
     }
 }
 
@@ -1705,8 +1955,8 @@ private struct TaskEditorSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             sheetHeader
 
-            fieldBlock("任务名称") {
-                TextField("例如：每日数据报表更新", text: $name)
+            fieldBlock("Task Name") {
+                TextField("e.g. Daily Data Report Update", text: $name)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, weight: .semibold))
                     .padding(.horizontal, 12)
@@ -1714,7 +1964,7 @@ private struct TaskEditorSheet: View {
                     .background(inputBackground)
             }
 
-            fieldBlock("计划时间") {
+            fieldBlock("Schedule") {
                 HStack(spacing: 9) {
                     compactPicker(width: 96) {
                         Picker("", selection: $cadence) {
@@ -1746,7 +1996,7 @@ private struct TaskEditorSheet: View {
                 }
             }
 
-            fieldBlock("让 Agent 帮你做什么...") {
+            fieldBlock("Task Prompt") {
                 VStack(spacing: 0) {
                     TextEditor(text: $prompt)
                         .font(.system(size: 14))
@@ -1759,7 +2009,7 @@ private struct TaskEditorSheet: View {
                         if !imService.channels.isEmpty {
                             compactPicker(width: 106) {
                                 Picker("", selection: $targetChannelID) {
-                                    Text("不转发").tag(nil as UUID?)
+                                    Text("No Forward").tag(nil as UUID?)
                                     ForEach(imService.channels) { channel in
                                         Text("\(channel.platform.displayName) - \(channel.name)").tag(channel.id as UUID?)
                                     }
@@ -1793,7 +2043,7 @@ private struct TaskEditorSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text("取消")
+                    Text("Cancel")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.primary.opacity(0.72))
                         .padding(.horizontal, 16)
@@ -1805,7 +2055,7 @@ private struct TaskEditorSheet: View {
                     save()
                     dismiss()
                 } label: {
-                    Text("保存")
+                    Text("Save")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 18)
@@ -1829,9 +2079,9 @@ private struct TaskEditorSheet: View {
     private var sheetHeader: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(task == nil ? "新建任务" : "编辑任务")
+                Text(task == nil ? "New Task" : "Edit Task")
                     .font(.system(size: 19, weight: .bold))
-                Text("按计划自动执行，也可随时手动触发。")
+                Text("Runs automatically on schedule, or manually on demand.")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -1889,7 +2139,7 @@ private struct TaskEditorSheet: View {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if var task {
-            task.name = trimmedName.isEmpty ? "定时任务" : trimmedName
+            task.name = trimmedName.isEmpty ? "Scheduled Task" : trimmedName
             task.prompt = trimmedPrompt
             task.cadence = cadence
             task.hour = hour
@@ -1900,7 +2150,7 @@ private struct TaskEditorSheet: View {
         } else {
             taskService.addTask(
                 ScheduledTask(
-                    name: trimmedName.isEmpty ? "定时任务" : trimmedName,
+                    name: trimmedName.isEmpty ? "Scheduled Task" : trimmedName,
                     prompt: trimmedPrompt,
                     cadence: cadence,
                     hour: hour,

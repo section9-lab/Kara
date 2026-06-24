@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+@preconcurrency import UserNotifications
 
 enum AgentEndpoint: Equatable, Codable {
     case cli(command: String, arguments: [String])
@@ -123,6 +124,93 @@ enum AgentDeliveryState: Equatable {
 struct AgentDeliveryResult: Equatable {
     let request: AgentDeliveryRequest?
     let state: AgentDeliveryState
+    let turnID: UUID?
+    let output: String?
+    let targetTool: AIToolType?
+
+    init(
+        request: AgentDeliveryRequest?,
+        state: AgentDeliveryState,
+        turnID: UUID? = nil,
+        output: String? = nil,
+        targetTool: AIToolType? = nil
+    ) {
+        self.request = request
+        self.state = state
+        self.turnID = turnID
+        self.output = output
+        self.targetTool = targetTool
+    }
+}
+
+enum KaraLocalNotificationCenter {
+    static func requestAuthorization() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error {
+                print("Kara notification authorization failed: \(error.localizedDescription)")
+            } else {
+                print("Kara notification authorization: \(granted ? "granted" : "denied")")
+            }
+        }
+    }
+
+    static func post(
+        identifier: String,
+        title: String,
+        subtitle: String? = nil,
+        body: String,
+        userInfo: [String: String] = [:]
+    ) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.subtitle = subtitle ?? ""
+        content.body = body
+        content.sound = .default
+        content.userInfo = userInfo
+
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: nil
+        )
+
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                add(request, center: center)
+            case .notDetermined:
+                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if let error {
+                        print("Kara notification authorization failed: \(error.localizedDescription)")
+                        return
+                    }
+
+                    guard granted else {
+                        print("Kara notification authorization denied")
+                        return
+                    }
+
+                    add(request, center: center)
+                }
+            case .denied:
+                print("Kara notification skipped: permission denied")
+            @unknown default:
+                print("Kara notification skipped: unknown authorization status")
+            }
+        }
+    }
+
+    private static func add(_ request: UNNotificationRequest, center: UNUserNotificationCenter) {
+        center.add(request) { error in
+            if let error {
+                print("Kara notification add failed: \(error.localizedDescription)")
+            } else {
+                print("Kara notification posted: \(request.identifier)")
+            }
+        }
+    }
 }
 
 /// Manages sending transcribed text to the selected AI tool.
@@ -317,14 +405,15 @@ final class AIIntegrationService {
         return await deliverText(
             request.text,
             screenshotURL: request.screenshotURL,
-            forcedTarget: request.target
+            forcedTarget: request.target,
+            notifyOnCompletion: true
         )
     }
 
     /// Send the given text to the currently selected AI tool.
     func sendText(_ text: String) {
         Task {
-            _ = await deliverText(text)
+            _ = await deliverText(text, notifyOnCompletion: true)
         }
     }
 
@@ -350,18 +439,27 @@ final class AIIntegrationService {
     func deliverText(
         _ text: String,
         screenshotURL: URL? = nil,
-        forcedTarget: AgentTarget? = nil
+        forcedTarget: AgentTarget? = nil,
+        notifyOnCompletion: Bool = false
     ) async -> AgentDeliveryResult {
         clearStateTask?.cancel()
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else {
-            return fail("No text to send")
+            let result = fail("No text to send")
+            if notifyOnCompletion {
+                notifyDeliveryCompletion(result, prompt: trimmedText)
+            }
+            return result
         }
 
         guard preferredTool != nil || forcedTarget != nil else {
             Self.log("deliverText failed: no selected tool")
-            return fail("No AI tool selected")
+            let result = fail("No AI tool selected")
+            if notifyOnCompletion {
+                notifyDeliveryCompletion(result, prompt: trimmedText)
+            }
+            return result
         }
 
         if let tool = forcedTarget?.tool.baseTool ?? preferredTool,
@@ -390,7 +488,33 @@ final class AIIntegrationService {
         Self.log("bridge turn exited: code=\(bridgeResult.exitCode), output=\(Self.previewText(bridgeResult.output))")
 
         guard let request = bridgeResult.request else {
-            return fail(bridgeResult.output)
+            if bridgeResult.exitCode == 0 {
+                lastResponse = bridgeResult.output
+                lastFailedRequest = nil
+                deliveryState = .idle
+                scheduleStateReset()
+                let result = AgentDeliveryResult(
+                    request: nil,
+                    state: deliveryState,
+                    turnID: bridgeResult.turnID,
+                    output: bridgeResult.output,
+                    targetTool: bridgeResult.route?.target.tool.baseTool
+                )
+                if notifyOnCompletion {
+                    notifyDeliveryCompletion(result, prompt: trimmedText)
+                }
+                return result
+            }
+
+            let result = fail(
+                bridgeResult.output,
+                turnID: bridgeResult.turnID,
+                output: bridgeResult.output
+            )
+            if notifyOnCompletion {
+                notifyDeliveryCompletion(result, prompt: trimmedText)
+            }
+            return result
         }
 
         if bridgeResult.exitCode == 0 {
@@ -398,12 +522,59 @@ final class AIIntegrationService {
             lastFailedRequest = nil
             deliveryState = .completed(request)
             scheduleStateReset()
-            return AgentDeliveryResult(request: request, state: deliveryState)
+            let result = AgentDeliveryResult(
+                request: request,
+                state: deliveryState,
+                turnID: bridgeResult.turnID,
+                output: bridgeResult.output,
+                targetTool: bridgeResult.route?.target.tool.baseTool ?? request.target.tool.baseTool
+            )
+            if notifyOnCompletion {
+                notifyDeliveryCompletion(result, prompt: trimmedText)
+            }
+            return result
         }
 
-        return fail(
+        let result = fail(
             bridgeResult.output.isEmpty ? "CLI failed with exit code \(bridgeResult.exitCode)" : bridgeResult.output,
-            request: request
+            request: request,
+            turnID: bridgeResult.turnID,
+            output: bridgeResult.output,
+            targetTool: bridgeResult.route?.target.tool.baseTool ?? request.target.tool.baseTool
+        )
+        if notifyOnCompletion {
+            notifyDeliveryCompletion(result, prompt: trimmedText)
+        }
+        return result
+    }
+
+    private func notifyDeliveryCompletion(_ result: AgentDeliveryResult, prompt: String) {
+        let isFailed: Bool
+        if case .failed = result.state {
+            isFailed = true
+        } else {
+            isFailed = false
+        }
+
+        let body = Self.previewNotificationText(result.output)
+            ?? Self.previewNotificationText(prompt)
+            ?? (isFailed ? "Agent execution failed" : "Agent execution completed")
+        let toolName = result.targetTool?.compactDisplayName
+            ?? result.request?.target.tool.compactDisplayName
+            ?? "Kara"
+        var userInfo = [
+            "kind": "agentDelivery"
+        ]
+        if let turnID = result.turnID {
+            userInfo["turnID"] = turnID.uuidString
+        }
+
+        KaraLocalNotificationCenter.post(
+            identifier: "kara.agent.\(result.turnID?.uuidString ?? UUID().uuidString)",
+            title: isFailed ? "Agent 执行失败" : "Agent 执行完成",
+            subtitle: toolName,
+            body: body,
+            userInfo: userInfo
         )
     }
 
@@ -654,7 +825,13 @@ final class AIIntegrationService {
         arguments += ["--add-dir", path]
     }
 
-    private func fail(_ message: String, request: AgentDeliveryRequest? = nil) -> AgentDeliveryResult {
+    private func fail(
+        _ message: String,
+        request: AgentDeliveryRequest? = nil,
+        turnID: UUID? = nil,
+        output: String? = nil,
+        targetTool: AIToolType? = nil
+    ) -> AgentDeliveryResult {
         lastError = message
         if let request {
             lastFailedRequest = request
@@ -662,7 +839,13 @@ final class AIIntegrationService {
         }
         deliveryState = .failed(message)
         scheduleStateReset()
-        return AgentDeliveryResult(request: request, state: deliveryState)
+        return AgentDeliveryResult(
+            request: request,
+            state: deliveryState,
+            turnID: turnID,
+            output: output ?? message,
+            targetTool: targetTool ?? request?.target.tool.baseTool
+        )
     }
 
     private func scheduleStateReset() {
@@ -680,6 +863,13 @@ final class AIIntegrationService {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > 60 else { return trimmed }
         return String(trimmed.prefix(60)) + "..."
+    }
+
+    nonisolated private static func previewNotificationText(_ text: String?) -> String? {
+        guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        guard trimmed.count > 180 else { return trimmed }
+        return String(trimmed.prefix(180)) + "..."
     }
 
     nonisolated private static func log(_ message: String) {
@@ -755,7 +945,7 @@ private struct AIReplyError: LocalizedError {
     }
 }
 
-private enum AgentRecentSessionReader {
+enum AgentRecentSessionReader {
     static func recentSessions(for tool: AIToolType, limit: Int) -> [AgentRecentSession] {
         switch tool.baseTool {
         case .codexCLI:

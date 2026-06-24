@@ -182,6 +182,8 @@ final class IMChannelService {
             let bridge = WeixinAgentBridge(account: account, client: client)
             var updatesBuffer = UserDefaults.standard.string(forKey: updatesBufferKey) ?? ""
             var emptyPollCount = 0
+            var pollFailureCount = 0
+            let listenerErrorThreshold = 3
 
             Task {
                 await reporter.setState(.listening)
@@ -252,6 +254,13 @@ final class IMChannelService {
                     }
 
                     UserDefaults.standard.set(updatesBuffer, forKey: updatesBufferKey)
+                    if pollFailureCount > 0 {
+                        Self.log("wechat poll recovered after \(pollFailureCount) failure(s)")
+                        pollFailureCount = 0
+                        Task {
+                            await reporter.setListeningAfterSuccessfulPoll()
+                        }
+                    }
                     if replyCount > 0 {
                         emptyPollCount = 0
                         Self.log("processed \(replyCount) wechat message(s)")
@@ -262,18 +271,25 @@ final class IMChannelService {
                             Self.log("wechat poll returned no messages (\(emptyPollCount) empty poll(s))")
                         }
                         Task {
-                            await reporter.setListeningUnlessFailed()
+                            await reporter.setListeningAfterSuccessfulPoll()
                         }
                     }
                 } catch is CancellationError {
                     break
                 } catch {
+                    pollFailureCount += 1
                     Self.log("poll failed: \(error.localizedDescription)")
+                    let message = error.localizedDescription
+                    let shouldShowListenerError = pollFailureCount >= listenerErrorThreshold
                     Task {
-                        await reporter.setState(
-                            .failed(error.localizedDescription),
-                            error: "WeChat listener failed: \(error.localizedDescription)"
-                        )
+                        if shouldShowListenerError {
+                            await reporter.setState(
+                                .failed(message),
+                                error: "WeChat listener failed: \(message)"
+                            )
+                        } else {
+                            await reporter.setState(.reconnecting(message))
+                        }
                     }
                     try? await Task.sleep(for: .seconds(3))
                 }
@@ -481,14 +497,26 @@ private actor WeChatAgentEventReporter {
         }
     }
 
-    func setListeningUnlessFailed() async {
+    func setListeningAfterSuccessfulPoll() async {
         let service = service
         await MainActor.run {
             guard let service else { return }
-            if case .failed = service.wechatAgentState {
+            let isListenerFailure = service.lastError?.hasPrefix("WeChat listener failed:") == true
+
+            switch service.wechatAgentState {
+            case .reconnecting, .idle, .listening, .replied:
+                service.wechatAgentState = .listening
+            case .failed where isListenerFailure:
+                service.wechatAgentState = .listening
+            case .failed:
+                return
+            case .running:
                 return
             }
-            service.wechatAgentState = .listening
+
+            if isListenerFailure {
+                service.lastError = nil
+            }
         }
     }
 
@@ -503,6 +531,7 @@ private actor WeChatAgentEventReporter {
 enum WeChatAgentState: Equatable {
     case idle
     case listening
+    case reconnecting(String)
     case running(String)
     case replied(String)
     case failed(String)
@@ -513,6 +542,8 @@ enum WeChatAgentState: Equatable {
             return "Not Listening"
         case .listening:
             return "Listening"
+        case .reconnecting:
+            return "Reconnecting"
         case .running:
             return "Running"
         case .replied:
@@ -526,6 +557,8 @@ enum WeChatAgentState: Equatable {
         switch self {
         case .idle, .listening:
             return nil
+        case .reconnecting(let message):
+            return "Retrying listener: \(message)"
         case .running(let text):
             return "Processing: \(text)"
         case .replied(let text):

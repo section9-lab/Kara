@@ -705,7 +705,10 @@ final class AIIntegrationService {
                     Self.log("runCLI timeout after \(Int(Self.cliTimeoutSeconds))s")
                     return CLIExecutionResult(
                         exitCode: 124,
-                        output: "Agent execution timed out. Try again later or ask a more specific question."
+                        output: Self.timeoutMessage(
+                            output: outputCapture.snapshot(),
+                            error: errorCapture.snapshot()
+                        )
                     )
                 }
                 outputPipe.fileHandleForReading.readabilityHandler = nil
@@ -817,6 +820,33 @@ final class AIIntegrationService {
     nonisolated private static func insertClaudeScreenshotDirectory(_ path: String, into arguments: inout [String]) {
         guard !arguments.contains(path) else { return }
         arguments += ["--add-dir", path]
+    }
+
+    nonisolated private static func timeoutMessage(output: Data, error: Data) -> String {
+        let outputText = String(data: output, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let errorText = String(data: error, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let partial = [outputText, errorText]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !partial.isEmpty else {
+            return "Agent execution timed out after \(Int(Self.cliTimeoutSeconds))s. Try again later or ask a more specific question."
+        }
+
+        return """
+        Agent execution timed out after \(Int(Self.cliTimeoutSeconds))s.
+
+        Last output:
+        \(Self.tail(partial, limit: 1600))
+        """
+    }
+
+    nonisolated private static func tail(_ text: String, limit: Int) -> String {
+        guard text.count > limit else { return text }
+        return "..." + String(text.suffix(limit))
     }
 
     private func fail(

@@ -109,7 +109,10 @@ enum AgentCLIAdapter {
                     log("timeout after \(Int(timeoutSeconds))s")
                     return AgentCLIExecutionResult(
                         exitCode: 124,
-                        output: "Agent execution timed out. Try again later or ask a more specific question."
+                        output: timeoutMessage(
+                            output: outputCapture.snapshot(),
+                            error: errorCapture.snapshot()
+                        )
                     )
                 }
 
@@ -244,6 +247,33 @@ enum AgentCLIAdapter {
     private static func insertClaudeScreenshotDirectory(_ path: String, into arguments: inout [String]) {
         guard !arguments.contains(path) else { return }
         arguments += ["--add-dir", path]
+    }
+
+    private static func timeoutMessage(output: Data, error: Data) -> String {
+        let outputText = String(data: output, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let errorText = String(data: error, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let partial = [outputText, errorText]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !partial.isEmpty else {
+            return "Agent execution timed out after \(Int(timeoutSeconds))s. Try again later or ask a more specific question."
+        }
+
+        return """
+        Agent execution timed out after \(Int(timeoutSeconds))s.
+
+        Last output:
+        \(tail(partial, limit: 1600))
+        """
+    }
+
+    private static func tail(_ text: String, limit: Int) -> String {
+        guard text.count > limit else { return text }
+        return "..." + String(text.suffix(limit))
     }
 
     private static func log(_ message: String) {

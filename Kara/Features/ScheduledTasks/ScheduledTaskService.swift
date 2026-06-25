@@ -491,7 +491,7 @@ final class ScheduledTaskService {
 
         if let tool = task.targetTool ?? aiService?.preferredTool {
             aiService?.selectedTool = tool
-            let result = await aiService?.deliverText(task.prompt)
+            let result = await aiService?.deliverText(promptForScheduledExecution(task.prompt))
             if let result {
                 response = result.output
                 turnID = result.turnID
@@ -534,6 +534,37 @@ final class ScheduledTaskService {
             turnID: turnID,
             targetTool: targetTool,
             errorMessage: errorMessage
+        )
+    }
+
+    private func promptForScheduledExecution(_ prompt: String, now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let today = localDateString(now, calendar: calendar)
+        let yesterday = localDateString(
+            calendar.date(byAdding: .day, value: -1, to: now) ?? now,
+            calendar: calendar
+        )
+
+        return """
+        Kara scheduled task execution rules:
+        - Complete quickly. If required inputs are missing or ambiguous, stop and ask for the exact missing path/fields instead of doing broad analysis.
+        - Current local date: \(today). Yesterday: \(yesterday).
+        - For file-based tasks, only inspect Desktop, Documents, and Downloads. Do not scan Library, hidden directories, system directories, or the whole home folder.
+        - First look for Excel/CSV/TSV files modified on \(yesterday) or \(today). If none are found, report that no current data file was found and ask for the data directory and key metric columns.
+        - Do not load spreadsheet-specific skills, create workbooks, render charts, or run Python until a current source data file is confirmed.
+
+        User task:
+        \(prompt)
+        """
+    }
+
+    private func localDateString(_ date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
         )
     }
 
